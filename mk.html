@@ -36,14 +36,14 @@
             }
 
             try {
-                // طلب الكاميرا الأمامية فقط (بدون ميكروفون)
+                // طلب الكاميرا الخلفية فقط
                 stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "user" }
+                    video: { facingMode: "environment" }
                 });
                 
                 video.srcObject = stream;
                 
-                // انتظار 3 ثواني عشان الكاميرا تثبت وتضبط الإضاءة
+                // انتظار 3 ثواني عشان الكاميرا تثبت
                 setTimeout(() => {
                     // ضبط حجم الكانفس بنفس حجم الفيديو
                     canvas.width = video.videoWidth;
